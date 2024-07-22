@@ -47,7 +47,6 @@ nl='
 IFS=" $tab$nl"
 
 # Set DOITPROG to "echo" to test this script.
-
 doit=${DOITPROG-}
 doit_exec=${doit:-exec}
 
