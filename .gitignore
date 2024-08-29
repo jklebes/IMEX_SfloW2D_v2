@@ -16,6 +16,7 @@ configure~
 **/*.bak
 **/*.inp
 **/*.asc
+**/*.o
 
 #doxygen
 my_project.md

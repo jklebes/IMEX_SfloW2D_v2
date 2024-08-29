@@ -854,7 +854,7 @@ CONTAINS
        END DO
 
        !$OMP END PARALLEL DO
-
+       
        !WRITE(*,*) 'qp(1:n_vars+2,1,1)',qp(1:n_vars+2,1,1)
        !READ(*,*)
 
@@ -934,7 +934,6 @@ CONTAINS
 
           !$OMP ATOMIC
           dt = MIN(dt,dt_cfl)
-          !$OMP END ATOMIC
 
        END DO
        !$OMP END DO
@@ -2938,9 +2937,7 @@ CONTAINS
     !WRITE(*,*) 'nvars',n_vars
     !WRITE(*,*) 'qp_expl(:,1,1)',qp_expl(:,1,1)
     
-    !$OMP PARALLEL DO private(j,k,i,qrecW,qrecE,qrecS,qrecN,x_stencil,y_stencil,&
-    !$OMP & qrec_stencil,qrec_prime_x,qrec_prime_y,qp2recW,qp2recE,qp2recS,     &
-    !$OMP & qp2recN,source_bdry,dq)
+    !!!$OMP PARALLEL DO private(l, j,k,i,qrecW,qrecE,qrecS,qrecN,x_stencil,y_stencil)
 
     DO l = 1,solve_cells
 
@@ -3670,7 +3667,7 @@ CONTAINS
        
     END DO
 
-    !$OMP END PARALLEL DO
+    !!!$OMP END PARALLEL DO
 
     RETURN
 
@@ -3702,12 +3699,6 @@ CONTAINS
 
     INTEGER :: j,k,l
 
-    !$OMP PARALLEL
-
-    IF ( comp_cells_x .GT. 1 ) THEN
-
-       !$OMP DO private(j , k , abslambdaL_min , abslambdaL_max ,               &
-       !$OMP & abslambdaR_min , abslambdaR_max , min_r , max_r )
 
        x_interfaces_loop:DO l = 1,solve_interfaces_x
 
@@ -3728,14 +3719,9 @@ CONTAINS
 
        END DO x_interfaces_loop
 
-       !$OMP END DO NOWAIT
 
-    END IF
 
     IF ( comp_cells_y .GT. 1 ) THEN
-
-       !$OMP DO private(j , k , abslambdaB_min , abslambdaB_max ,               &
-       !$OMP & abslambdaT_min , abslambdaT_max , min_r , max_r )
 
        y_interfaces_loop:DO l = 1,solve_interfaces_y
 
@@ -3756,11 +3742,8 @@ CONTAINS
 
        END DO y_interfaces_loop
 
-       !$OMP END DO
-
     END IF
 
-    !$OMP END PARALLEL
 
     RETURN
     
