@@ -898,7 +898,7 @@ CONTAINS
        END DO
        !$OMP END DO
 
-       !$OMP DO private(j,k,max_a,dt_interface_x,dt_interface_y,dt_cfl)       
+       !$OMP DO private(j,k,max_a,dt_interface_x,dt_interface_y,dt_cfl) reduction(min:dt)
        DO l = 1,solve_cells
 
           j = j_cent(l)
@@ -932,7 +932,6 @@ CONTAINS
 
           dt_cfl = MIN( dt_interface_x , dt_interface_y )
 
-          !$OMP ATOMIC
           dt = MIN(dt,dt_cfl)
 
        END DO

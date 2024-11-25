@@ -4,6 +4,7 @@ build/
 bin/
 **/*.mod
 **/Makefile
+src/IMEX_SfloW2D
 docker-compose.text.yml
 autom4te.cache/
 config.log
