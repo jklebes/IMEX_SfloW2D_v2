@@ -34,7 +34,7 @@ PROGRAM IMEX_SfloW2D
   USE geometry_2d, ONLY : topography_reconstruction
 
   USE geometry_2d, ONLY : dx, dy, B_cent
-  ! USE geometry_2d, ONLY : comp_cells_x, comp_cells_y
+  USE geometry_2d, ONLY : comp_cells_x, comp_cells_y
 
   USE init_2d, ONLY : collapsing_volume
   USE init_2d, ONLY : init_empty
@@ -234,13 +234,12 @@ PROGRAM IMEX_SfloW2D
 
   vuln_table = .FALSE.
 
+  !$OMP PARALLEL DO collapse(2) private(p_dyn, i_table, i_thk_lev, i_pdyn_lev)
 
-  !$OMP PARALLEL DO private(j, k, p_dyn, i_table, i_thk_lev, i_pdyn_lev)
+  DO k = 1, comp_cells_y
+  DO j = 1, comp_cells_x
 
-  DO l = 1, solve_cells
-
-     j = j_cent(l)
-     k = k_cent(l)
+  IF ( solve_mask(j, k) ) THEN
 
      IF ( q(1, j, k) .GT. 0.0_wp ) THEN
 
@@ -281,6 +280,8 @@ PROGRAM IMEX_SfloW2D
 
      END IF
 
+  END IF
+  END DO 
   END DO
 
   !$OMP END PARALLEL DO
@@ -363,12 +364,12 @@ PROGRAM IMEX_SfloW2D
 
      t = t+dt
 
-     !$OMP PARALLEL DO private(j, k, p_dyn, i_table, i_thk_lev, i_pdyn_lev)
+  !$OMP PARALLEL DO collapse(2) private(p_dyn, i_table, i_thk_lev, i_pdyn_lev)
 
-     DO l = 1, solve_cells
+  DO k = 1, comp_cells_y
+  DO j = 1, comp_cells_x
 
-        j = j_cent(l)
-        k = k_cent(l)
+  IF ( solve_mask(j, k) ) THEN
 
         IF ( q(1, j, k) .GT. 0.0_wp ) THEN
 
@@ -407,7 +408,8 @@ PROGRAM IMEX_SfloW2D
            qp(4, j, k) = T_ambient
 
         END IF
-
+        END IF
+        END DO
      END DO
 
      !$OMP END PARALLEL DO
