@@ -34,7 +34,7 @@ PROGRAM IMEX_SfloW2D
   USE geometry_2d, ONLY : topography_reconstruction
 
   USE geometry_2d, ONLY : dx, dy, B_cent
-  USE geometry_2d, ONLY : comp_cells_x, comp_cells_y
+  ! USE geometry_2d, ONLY : comp_cells_x, comp_cells_y
 
   USE init_2d, ONLY : collapsing_volume
   USE init_2d, ONLY : init_empty
@@ -234,13 +234,15 @@ PROGRAM IMEX_SfloW2D
 
   vuln_table = .FALSE.
 
-  !$OMP PARALLEL DO collapse(2) private(j, k, p_dyn, i_table, i_thk_lev, i_pdyn_lev)
 
-    DO k = 1, comp_cells_y
+  !$OMP PARALLEL DO private(j, k, p_dyn, i_table, i_thk_lev, i_pdyn_lev)
 
-       DO j = 1, comp_cells_x
+  DO l = 1, solve_cells
 
-          IF ( solve_mask(j, k) .AND. (q(1, j, k) .GT. 0.0_wp )) THEN
+     j = j_cent(l)
+     k = k_cent(l)
+
+     IF ( q(1, j, k) .GT. 0.0_wp ) THEN
 
         CALL qc_to_qp(q(1:n_vars, j, k), qp(1:n_vars, j, k), p_dyn )
 
@@ -278,8 +280,6 @@ PROGRAM IMEX_SfloW2D
         pdynmax(j, k) = 0.0_wp
 
      END IF
-
-  END DO
 
   END DO
 
@@ -363,37 +363,18 @@ PROGRAM IMEX_SfloW2D
 
      t = t+dt
 
+     !$OMP PARALLEL DO private(j, k, p_dyn, i_table, i_thk_lev, i_pdyn_lev)
 
-     ! TODO this is temporarily a separate parallel region because moving qc_to_qp to gpu is complicated
-  !$OMP PARALLEL DO collapse(2) private( p_dyn)
-    DO k = 1, comp_cells_y
+     DO l = 1, solve_cells
 
-       DO j = 1, comp_cells_x
+        j = j_cent(l)
+        k = k_cent(l)
 
-          IF ( solve_mask(j, k) ) THEN
-                  IF  ( q(1, j, k) .GT. 0.0_wp ) THEN
+        IF ( q(1, j, k) .GT. 0.0_wp ) THEN
 
            CALL qc_to_qp(q(1:n_vars, j, k), qp(1:n_vars+2, j, k), p_dyn )
 
            hmax(j, k) = MAX( hmax(j, k), qp(1, j, k) )
-        ELSE
-
-           qp(1:n_vars+2, j, k) = 0.0_wp
-           qp(4, j, k) = T_ambient
-   END IF
-   END IF
-   END DO
-   END DO
-   !$OMP END PARALLEL DO
-
-  !$OMP TARGET map(to: solve_mask, q, thickness_levels, qp(1,:,:), dyn_pres_levels) map(tofrom: pdynmax, vuln_table)
-  !$OMP PARALLEL DO collapse(2) private(i_table, i_thk_lev, i_pdyn_lev)
-
-    DO k = 1, comp_cells_y
-
-       DO j = 1, comp_cells_x
-
-          IF ( solve_mask(j, k) .AND. ( q(1, j, k) .GT. 0.0_wp )) THEN
 
            IF ( q(1, j, k) .GT. 0.001_wp ) THEN
 
@@ -420,12 +401,16 @@ PROGRAM IMEX_SfloW2D
 
            END DO
 
+        ELSE
+
+           qp(1:n_vars+2, j, k) = 0.0_wp
+           qp(4, j, k) = T_ambient
+
         END IF
-      END DO
+
      END DO
 
      !$OMP END PARALLEL DO
-     !$OMP END TARGET
 
      IF ( verbose_level .GE. 0 ) THEN
 
