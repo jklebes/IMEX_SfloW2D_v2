@@ -29,7 +29,7 @@ MODULE parameters_2d
   REAL(wp) :: max_dt            !< Largest time step allowed
 
   REAL(wp) :: cfl               !< Courant-Friedrichs-Lewy parameter 
-
+!$omp declare target(eps_sing, eps_sing4)
   REAL(wp) :: eps_sing          !< parameter for desingularization
   REAL(wp) :: eps_sing4         !< parameter for desingularization**4
 
@@ -57,6 +57,7 @@ MODULE parameters_2d
   !> - T      => solve the full energy equation
   !> - F      => solve for a simpler transport equation (advection) for temperature
   !> .
+!$omp declare target(energy_flag)
   LOGICAL :: energy_flag
 
   !> Flag to choose if we add the rheology
@@ -71,6 +72,8 @@ MODULE parameters_2d
   !> .
   !> - 9      => Coulomb function mu(Fr) (Zhu... 2020 , Roche... 2021)
   INTEGER :: rheology_model
+
+!$omp declare target(gas_flag, liquid_flag)
 
   LOGICAL :: liquid_flag
 
@@ -92,6 +95,7 @@ MODULE parameters_2d
   !> - T      => alpha 
   !> - F      => h*alpha
   !> .
+!$omp declare target(alpha_flag)
   LOGICAL :: alpha_flag
   
   !> Flag to correct for the topography slope when computing pressure forces
@@ -122,6 +126,7 @@ MODULE parameters_2d
   !> - T      => we use vertical profiles
   !> - F      => constant vertical profiles
   !> .  
+!$omp declare target(vertical_profiles_flag)
   LOGICAL :: vertical_profiles_flag
   
   !> Flag for deposition computed from vertical concentration profiles
@@ -222,13 +227,14 @@ MODULE parameters_2d
   !> Initial sediment concentration in the pile of material
   REAL(wp), ALLOCATABLE :: alphas_init(:)
 
+!$omp declare target(n_vars)
   INTEGER :: n_vars   !< Number of conservative variables
   INTEGER :: n_eqns   !< Number of equations
 
+!$omp declare target(n_solid, n_add_gas)
   INTEGER :: n_solid  !< Number of solid classes
 
   INTEGER :: n_add_gas  !< Number of additional gas components
-
   INTEGER :: n_nh     !< Number of non-hyperbolic terms
 
   INTEGER :: n_RK     !< Runge-Kutta order
@@ -312,6 +318,7 @@ MODULE parameters_2d
   TYPE(bc), ALLOCATABLE :: bcN(:)
 
   !> quadrature points for integration of vertical profiles
+!$omp declare target(n_quad)
   INTEGER :: n_quad
 
 END MODULE parameters_2d

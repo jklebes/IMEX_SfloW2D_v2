@@ -114,8 +114,6 @@ MODULE solver_2d
   !> Maximum over time of thickness
   LOGICAL, ALLOCATABLE:: vuln_table(:,:,:)
 
-  LOGICAL, ALLOCATABLE:: pdyn_table(:,:)
-
   !> Max local speeds at the x-interface
   REAL(wp), ALLOCATABLE:: a_interface_x_max(:,:,:)
   !> Max local speeds at the y-interface
@@ -266,8 +264,6 @@ CONTAINS
     ALLOCATE( vuln_table( n_thickness_levels*n_dyn_pres_levels,              &
          comp_cells_x, comp_cells_y ) )
 
-
-    ALLOCATE( pdyn_table(comp_cells_x, comp_cells_y) )
 
     ALLOCATE( q_fv( n_vars, comp_cells_x, comp_cells_y ) )
 
@@ -506,8 +502,6 @@ CONTAINS
     DEALLOCATE( hmax, pdynmax )
 
     DEALLOCATE( vuln_table )
-
-    DEALLOCATE( pdyn_table )
 
     DEALLOCATE( q_fv )
 

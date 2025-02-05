@@ -140,6 +140,7 @@ MODULE geometry_2d
   REAL(wp) :: cell_size
   INTEGER :: comp_cells_xy
 
+!$omp declare target(z_quad, w_quad)
   REAL(wp), ALLOCATABLE :: z_quad(:)
   REAL(wp), ALLOCATABLE :: w_quad(:)
   
@@ -1696,6 +1697,7 @@ CONTAINS
     logical first/.TRUE./
     parameter (E1=2.718281828459045235d0,Em1=1.d0/E1)
     save first,em,g,a,b
+    !$omp declare target
     if(first) then
        first=.FALSE.;em(-1)=E1;ej=1.d0;em(0)=1.d0;g(0)=0.d0
        do j=1,64
@@ -1791,6 +1793,7 @@ CONTAINS
     logical first/.TRUE./
     parameter (E1=2.718281828459045235d0,Em1=1.d0/E1)
     save first,e,g,a,b
+    !$omp declare target
     if(first) then
        first=.FALSE.;emj=Em1;e(1)=E1;g(1)=-Em1
        do j=2,64

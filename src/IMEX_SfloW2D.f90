@@ -85,7 +85,7 @@ PROGRAM IMEX_SfloW2D
 
   USE solver_2d, ONLY : q, qp, t, dt
   USE solver_2d, ONLY : hmax, pdynmax
-  USE solver_2d, ONLY : pdyn_table, vuln_table
+  USE solver_2d, ONLY : vuln_table
 
   USE constitutive_2d, ONLY : qc_to_qp
 
@@ -111,7 +111,7 @@ PROGRAM IMEX_SfloW2D
 
   INTEGER:: i_pdyn_lev, i_thk_lev, i_table
 
-  LOGICAL:: thck_table
+  LOGICAL:: thck_table, pdyn_table
 
   INTEGER n_threads
 
@@ -260,11 +260,11 @@ PROGRAM IMEX_SfloW2D
 
            DO i_pdyn_lev = 1, n_dyn_pres_levels
 
-              pdyn_table(j, k) = ( p_dyn .GE. dyn_pres_levels(i_pdyn_lev) ) 
+              pdyn_table = ( p_dyn .GE. dyn_pres_levels(i_pdyn_lev) ) 
 
               i_table = i_table+1
 
-              vuln_table(i_table, j, k) = ( thck_table .AND. pdyn_table(j, k) )
+              vuln_table(i_table, j, k) = ( thck_table .AND. pdyn_table )
 
            END DO
 
@@ -363,18 +363,37 @@ PROGRAM IMEX_SfloW2D
 
      t = t+dt
 
-  !$OMP TARGET
-  !$OMP PARALLEL DO collapse(2) private(j, k, p_dyn, i_table, i_thk_lev, i_pdyn_lev)
+
+     ! TODO this is temporarily a separate parallel region because moving qc_to_qp to gpu is complicated
+  !$OMP PARALLEL DO collapse(2) private( p_dyn)
+    DO k = 1, comp_cells_y
+
+       DO j = 1, comp_cells_x
+
+          IF ( solve_mask(j, k) ) THEN
+                  IF  ( q(1, j, k) .GT. 0.0_wp ) THEN
+
+           CALL qc_to_qp(q(1:n_vars, j, k), qp(1:n_vars+2, j, k), p_dyn )
+
+           hmax(j, k) = MAX( hmax(j, k), qp(1, j, k) )
+        ELSE
+
+           qp(1:n_vars+2, j, k) = 0.0_wp
+           qp(4, j, k) = T_ambient
+   END IF
+   END IF
+   END DO
+   END DO
+   !$OMP END PARALLEL DO
+
+  !$OMP TARGET map(to: solve_mask, q, thickness_levels, qp(1,:,:), dyn_pres_levels) map(tofrom: pdynmax, vuln_table)
+  !$OMP PARALLEL DO collapse(2) private(i_table, i_thk_lev, i_pdyn_lev)
 
     DO k = 1, comp_cells_y
 
        DO j = 1, comp_cells_x
 
           IF ( solve_mask(j, k) .AND. ( q(1, j, k) .GT. 0.0_wp )) THEN
-
-           CALL qc_to_qp(q(1:n_vars, j, k), qp(1:n_vars+2, j, k), p_dyn )
-
-           hmax(j, k) = MAX( hmax(j, k), qp(1, j, k) )
 
            IF ( q(1, j, k) .GT. 0.001_wp ) THEN
 
@@ -390,21 +409,16 @@ PROGRAM IMEX_SfloW2D
 
               DO i_pdyn_lev = 1, n_dyn_pres_levels
 
-                 pdyn_table(j, k) = ( p_dyn .GE. dyn_pres_levels(i_pdyn_lev) ) 
+                 pdyn_table = ( p_dyn .GE. dyn_pres_levels(i_pdyn_lev) ) 
 
                  i_table = i_table+1
 
                  vuln_table(i_table, j, k) = vuln_table(i_table, j, k) .OR.            &
-                      ( thck_table .AND. pdyn_table(j, k) )
+                      ( thck_table .AND. pdyn_table )
 
               END DO
 
            END DO
-
-        ELSE
-
-           qp(1:n_vars+2, j, k) = 0.0_wp
-           qp(4, j, k) = T_ambient
 
         END IF
       END DO

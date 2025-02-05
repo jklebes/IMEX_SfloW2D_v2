@@ -10,7 +10,9 @@ MODULE constitutive_2d
        curvature_term_flag
 
   IMPLICIT none
-
+!$omp declare target (grav, friction_factor, rho_s, vonk, sc, k_s, z_dyn, rho_a_amb, t_ambient, sp_heat_a, sp_heat_g, sp_heat_s)
+!$omp declare target (sp_heat_l,pres, inv_pres, rho_l, inv_rho_l, sp_heat_c, sp_gas_const_a, sp_gas_const_g)
+!$omp declare target (inv_rho_s, kin_visc_c, diam_s, h_crit_rel )
   !> flag used for size of implicit non linear-system
   LOGICAL, ALLOCATABLE :: implicit_flag(:)
 
@@ -403,7 +405,7 @@ CONTAINS
   SUBROUTINE r_phys_var(r_qj , r_h , r_u , r_v , r_alphas , r_rho_m , r_T ,     &
        r_alphal , r_alphag , r_red_grav , p_dyn)
 
-    USE geometry_2d, ONLY : lambertw , lambertw0 , lambertwm1
+    USE geometry_2d, ONLY : lambertw0 , lambertwm1
     USE geometry_2d, ONLY : z_quad , w_quad
 
     USE parameters_2d, ONLY : eps_sing , eps_sing4 , vertical_profiles_flag
@@ -484,6 +486,8 @@ CONTAINS
     REAL(wp) :: w(n_quad)
 
     REAL(wp) :: u_log_avg
+
+    !$omp declare target
 
     ! compute solid mass fractions
     IF ( r_qj(1) .GT. EPSILON(1.0_wp) ) THEN
@@ -1446,6 +1450,8 @@ CONTAINS
     REAL(wp) :: r_alphal          !< real-value liquid volume fraction
     REAL(wp) :: r_alphag(n_add_gas) !< real-value add. gas volume fractions
     REAL(wp) :: r_red_grav
+
+    !$omp declare target
 
     CALL r_phys_var( qc , r_h , r_u , r_v , r_alphas , r_rho_m , r_T ,          &
          r_alphal , r_alphag , r_red_grav , p_dyn )
