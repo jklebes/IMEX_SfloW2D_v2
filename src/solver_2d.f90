@@ -1025,6 +1025,24 @@ CONTAINS
        ! define the implicit coefficient for the i-th step of the Runge-Kutta
        a_diag = a_dirk_ij(i_RK, i_RK)
 
+       !$omp target update to (dt, n_vars)
+       !$omp target
+       !$OMP teams distribute PARALLEL do private(j,k)
+       DO l = 1, solve_cells
+          j = j_cent(l)
+          k = k_cent(l)
+
+          ! New solution at the i_RK step without the implicit  and
+          ! semi-implicit term
+          q_fv( 1:n_vars, j, k ) = q0( 1:n_vars, j, k )                     &
+               - dt * (MATMUL( divFlux(1:n_eqns, j, k, 1:i_RK)                     &
+               - expl_terms(1:n_eqns, j, k, 1:i_RK), a_tilde(1:i_RK) )            &
+               - MATMUL( NH(1:n_eqns, j, k, 1:i_RK) + SI_NH(1:n_eqns, j, k, 1:i_RK), &
+               a_dirk(1:i_RK) ) )
+       end do
+       !$omp end teams distribute parallel do
+       !$omp end target
+
        !$OMP PARALLEL 
        !$OMP DO private(j, k, q_guess, q_si, Rj_not_impl)
 
@@ -1052,14 +1070,6 @@ CONTAINS
              !q_guess(1:n_vars) = q_rk( 1:n_vars, j, k  , MAX(1, i_RK-1))
 
           END IF
-
-          ! New solution at the i_RK step without the implicit  and
-          ! semi-implicit term
-          q_fv( 1:n_vars, j, k ) = q0( 1:n_vars, j, k )                     &
-               - dt * (MATMUL( divFlux(1:n_eqns, j, k, 1:i_RK)                     &
-               - expl_terms(1:n_eqns, j, k, 1:i_RK), a_tilde(1:i_RK) )            &
-               - MATMUL( NH(1:n_eqns, j, k, 1:i_RK) + SI_NH(1:n_eqns, j, k, 1:i_RK), &
-               a_dirk(1:i_RK) ) )
 
           CALL qc_to_qp(q_fv(1:n_vars, j, k), qp(1:n_vars+2, j, k), p_dyn )
 
