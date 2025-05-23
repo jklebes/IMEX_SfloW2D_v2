@@ -1019,6 +1019,27 @@ CONTAINS
 
     !$OMP END PARALLEL
 
+
+    !$OMP PARALLEL DO collapse(2)
+       DO j = 1, comp_cells_x
+       DO k = 1, comp_cells_y
+          ! initialize the RK step
+          !IF ( i_RK .EQ. 1 ) THEN
+
+             ! solution from the previous time step
+             q_rk(1:n_vars, j, k , 1) = q0( 1:n_vars, j, k) 
+
+          !ELSE
+
+             ! solution from the previous RK step
+             !q_guess(1:n_vars) = q_rk( 1:n_vars, j, k  , MAX(1, i_RK-1))
+
+          !END IF
+      end do
+      end do
+      !OMP END PARALLEL DO
+
+
     runge_kutta:DO i_RK = 1, n_RK
 
        IF ( verbose_level .GE. 1 ) WRITE(*,*) 'solver, imex_RK_solver: i_RK',i_RK
@@ -1049,6 +1070,7 @@ CONTAINS
                - expl_terms(1:n_eqns, j, k, 1:i_RK), a_tilde(1:i_RK) )            &
                - MATMUL( NH(1:n_eqns, j, k, 1:i_RK) + SI_NH(1:n_eqns, j, k, 1:i_RK), &
                a_dirk(1:i_RK) ) ))
+          CALL qc_to_qp(q_fv(1:n_vars, j, k), qp(1:n_vars+2, j, k), p_dyn )
        end do
        end do
        !$omp end teams distribute parallel do
@@ -1060,39 +1082,24 @@ CONTAINS
        solve_cells_loop:DO j = 1, comp_cells_x
        DO k = 1, comp_cells_y
 
-          IF ( verbose_level .GE. 2 ) THEN
+          !IF ( verbose_level .GE. 2 ) THEN
 
-             WRITE(*,*) 'solver, imex_RK_solver: j, k',j, k
-             ! READ(*,*)
+          !   WRITE(*,*) 'solver, imex_RK_solver: j, k',j, k
+          !   ! READ(*,*)
 
-          END IF
+          !END IF
 
-          ! initialize the RK step
-          IF ( i_RK .EQ. 1 ) THEN
+          !IF ( verbose_level .GE. 2 ) THEN
 
-             ! solution from the previous time step
-             q_guess(1:n_vars) = q0( 1:n_vars, j, k) 
+          !   WRITE(*,*) 'q_guess',q_guess
+          !   IF ( q_guess(1) .GT. 0.0_wp  ) THEN 
 
-          ELSE
+          !      CALL qc_to_qp( q_guess, qp(1:n_vars+2, j, k), p_dyn )
+          !      WRITE(*,*) 'q_guess: qp',qp(1:n_vars+2, j, k)
 
-             ! solution from the previous RK step
-             !q_guess(1:n_vars) = q_rk( 1:n_vars, j, k  , MAX(1, i_RK-1))
+          !   END IF
 
-          END IF
-
-          CALL qc_to_qp(q_fv(1:n_vars, j, k), qp(1:n_vars+2, j, k), p_dyn )
-
-          IF ( verbose_level .GE. 2 ) THEN
-
-             WRITE(*,*) 'q_guess',q_guess
-             IF ( q_guess(1) .GT. 0.0_wp  ) THEN 
-
-                CALL qc_to_qp( q_guess, qp(1:n_vars+2, j, k), p_dyn )
-                WRITE(*,*) 'q_guess: qp',qp(1:n_vars+2, j, k)
-
-             END IF
-
-          END IF
+          !END IF
 
           adiag_pos:IF ( a_diag .NE. 0.0_wp ) THEN
 
@@ -1208,7 +1215,12 @@ CONTAINS
 
              END IF pos_thick
 
+          ELSE 
+             q_guess (1:n_vars) = q_rk(1:n_vars, j, k , i_RK)
+
           END IF adiag_pos
+
+
 
           IF ( a_diag .NE. 0.0_wp ) THEN
 
