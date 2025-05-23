@@ -142,6 +142,8 @@ MODULE solver_2d
 
 
   LOGICAL, ALLOCATABLE:: solve_mask(:,:)
+  !$omp declare target (solve_mask_int) 
+  integer, ALLOCATABLE:: solve_mask_int(:,:) ! TODO shorter int?
   LOGICAL, ALLOCATABLE:: solve_mask_temp(:,:)
   LOGICAL, ALLOCATABLE:: solve_mask_x(:,:)
   LOGICAL, ALLOCATABLE:: solve_mask_y(:,:)
@@ -312,6 +314,7 @@ CONTAINS
 
     ALLOCATE( solve_mask_time( comp_cells_x, comp_cells_y ) )
     ALLOCATE( solve_mask( comp_cells_x, comp_cells_y ) )
+    ALLOCATE( solve_mask_int( comp_cells_x, comp_cells_y ) )
     ALLOCATE( solve_mask_temp( comp_cells_x, comp_cells_y ) )
 
     solve_mask_time(1:comp_cells_x, 1:comp_cells_y) = 0.0_wp
@@ -544,6 +547,7 @@ CONTAINS
 
     DEALLOCATE( solve_mask_time )
     DEALLOCATE( solve_mask )
+    DEALLOCATE( solve_mask_int )
     DEALLOCATE( solve_mask_temp )
     DEALLOCATE( solve_mask_x )
     DEALLOCATE( solve_mask_y )
@@ -714,6 +718,11 @@ CONTAINS
     !$OMP END WORKSHARE
 
     !$OMP END PARALLEL
+
+    !transfer solve_mask to gpu
+    solve_mask_int = 0
+    where (solve_mask) solve_mask_int = 1 
+    !$omp target update to (solve_mask_int)
 
     !----- check for cells where computation is needed
     i = 0
@@ -1027,18 +1036,20 @@ CONTAINS
 
        !$omp target update to (dt, n_vars)
        !$omp target
-       !$OMP teams distribute PARALLEL do private(j,k)
-       DO l = 1, solve_cells
-          j = j_cent(l)
-          k = k_cent(l)
+       !$OMP teams distribute PARALLEL do collapse(2) private(j,k)
+       DO j = 1, comp_cells_x
+       DO k = 1, comp_cells_y
+          !j = j_cent(l)
+          !k = k_cent(l)
 
           ! New solution at the i_RK step without the implicit  and
           ! semi-implicit term
-          q_fv( 1:n_vars, j, k ) = q0( 1:n_vars, j, k )                     &
+          q_fv( 1:n_vars, j, k ) = solve_mask_int(j,k) * ( q0( 1:n_vars, j, k )                     &
                - dt * (MATMUL( divFlux(1:n_eqns, j, k, 1:i_RK)                     &
                - expl_terms(1:n_eqns, j, k, 1:i_RK), a_tilde(1:i_RK) )            &
                - MATMUL( NH(1:n_eqns, j, k, 1:i_RK) + SI_NH(1:n_eqns, j, k, 1:i_RK), &
-               a_dirk(1:i_RK) ) )
+               a_dirk(1:i_RK) ) ))
+       end do
        end do
        !$omp end teams distribute parallel do
        !$omp end target
