@@ -1020,7 +1020,7 @@ CONTAINS
     !$OMP END PARALLEL
 
 
-    !$omp target
+    !$omp target map(always, to: q0) map (always, from: q_rk)
     !$omp teams 
     !$OMP distribute PARALLEL DO collapse(2)
        DO j = 1, comp_cells_x
@@ -1227,18 +1227,6 @@ CONTAINS
        !$OMP END PARALLEL DO
 
 
-
-          ELSE ! a_diag == 0 
-       !$OMP parallel DO collapse(2) private( q_guess, q_si, Rj_not_impl)
-       DO j = 1, comp_cells_x
-       DO k = 1, comp_cells_y
-             q_guess (1:n_vars) = q_rk(1:n_vars, j, k , i_RK)
-          ! Store the solution at the end of the i_RK step
-          q_rk( 1:n_vars, j, k, i_RK ) = q_guess
-       end do
-       END DO 
-       !$OMP END PARALLEL DO
-
           END IF adiag_pos
 
 
@@ -1266,12 +1254,12 @@ CONTAINS
 
           !END IF
 
+          IF ( omega_tilde(i_RK) .GT. 0.0_wp ) THEN
        !$OMP parallel DO collapse(2) private( q_guess, q_si, Rj_not_impl)
        DO j = 1, comp_cells_x
        DO k = 1, comp_cells_y
 
 
-          IF ( omega_tilde(i_RK) .GT. 0.0_wp ) THEN
           
              IF ( q_rk(1, j, k, i_RK) .GT. 0.0_wp ) THEN
 
@@ -1292,13 +1280,10 @@ CONTAINS
                   source_xy(j, k), qp_rk(1:n_vars+2, j, k, i_RK),                   &
                   expl_terms(1:n_eqns, j, k, i_RK), t, cell_source_fractions(j, k) )
   
-          END IF
 
        end do
        END DO 
        !$OMP END PARALLEL DO
-
-       IF ( omega_tilde(i_RK) .GT. 0.0_wp ) THEN
 
           ! Eval and store the explicit hyperbolic (fluxes) terms
           CALL eval_hyperbolic_terms(                                           &
