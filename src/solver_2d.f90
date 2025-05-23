@@ -1054,13 +1054,11 @@ CONTAINS
        !$omp end teams distribute parallel do
        !$omp end target
 
-       !$OMP PARALLEL 
-       !$OMP DO private(j, k, q_guess, q_si, Rj_not_impl)
+       !$OMP parallel DO collapse(2) private( q_guess, q_si, Rj_not_impl)
 
-       solve_cells_loop:DO l = 1, solve_cells
-
-          j = j_cent(l)
-          k = k_cent(l)
+       !solve_cells_loop:DO l = 1, solve_cells
+       solve_cells_loop:DO j = 1, comp_cells_x
+       DO k = 1, comp_cells_y
 
           IF ( verbose_level .GE. 2 ) THEN
 
@@ -1262,10 +1260,10 @@ CONTAINS
   
           END IF
 
+       end do
        END DO solve_cells_loop
 
-       !$OMP END DO
-       !$OMP END PARALLEL 
+       !$OMP END PARALLEL DO
 
        IF ( omega_tilde(i_RK) .GT. 0.0_wp ) THEN
 
