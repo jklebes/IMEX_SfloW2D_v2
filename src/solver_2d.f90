@@ -1020,7 +1020,9 @@ CONTAINS
     !$OMP END PARALLEL
 
 
-    !$OMP PARALLEL DO collapse(2)
+    !$omp target
+    !$omp teams 
+    !$OMP distribute PARALLEL DO collapse(2)
        DO j = 1, comp_cells_x
        DO k = 1, comp_cells_y
           ! initialize the RK step
@@ -1037,7 +1039,9 @@ CONTAINS
           !END IF
       end do
       end do
-      !OMP END PARALLEL DO
+      !$OMP END distribute PARALLEL DO
+      !$OMP end teams
+      !$omp end target
 
 
     runge_kutta:DO i_RK = 1, n_RK
@@ -1076,11 +1080,6 @@ CONTAINS
        !$omp end teams distribute parallel do
        !$omp end target
 
-       !$OMP parallel DO collapse(2) private( q_guess, q_si, Rj_not_impl)
-
-       !solve_cells_loop:DO l = 1, solve_cells
-       solve_cells_loop:DO j = 1, comp_cells_x
-       DO k = 1, comp_cells_y
 
           !IF ( verbose_level .GE. 2 ) THEN
 
@@ -1102,6 +1101,9 @@ CONTAINS
           !END IF
 
           adiag_pos:IF ( a_diag .NE. 0.0_wp ) THEN
+       !$OMP parallel DO collapse(2) private( q_guess, q_si, Rj_not_impl)
+       solve_cells_loop:DO j = 1, comp_cells_x
+       DO k = 1, comp_cells_y
 
              pos_thick:IF ( q_fv(1, j, k) .GT.  0.0_wp )  THEN
 
@@ -1214,39 +1216,59 @@ CONTAINS
                 NH(1:n_eqns, j, k, i_RK) = 0.0_wp
 
              END IF pos_thick
+          ! Store the solution at the end of the i_RK step
+          q_rk( 1:n_vars, j, k, i_RK ) = q_guess
 
-          ELSE 
+             ! Update the implicit term with correction on the new velocity
+             NH(1:n_vars, j, k, i_RK) = ( q_rk(1:n_vars,j,k,i_RK) - q_si(1:n_vars))      &
+                  / ( dt*a_diag ) 
+       end do
+       END DO solve_cells_loop
+       !$OMP END PARALLEL DO
+
+
+
+          ELSE ! a_diag == 0 
+       !$OMP parallel DO collapse(2) private( q_guess, q_si, Rj_not_impl)
+       DO j = 1, comp_cells_x
+       DO k = 1, comp_cells_y
              q_guess (1:n_vars) = q_rk(1:n_vars, j, k , i_RK)
+          ! Store the solution at the end of the i_RK step
+          q_rk( 1:n_vars, j, k, i_RK ) = q_guess
+       end do
+       END DO 
+       !$OMP END PARALLEL DO
 
           END IF adiag_pos
 
 
 
-          IF ( a_diag .NE. 0.0_wp ) THEN
-
+          !IF ( a_diag .NE. 0.0_wp ) THEN
              ! Update the implicit term with correction on the new velocity
-             NH(1:n_vars, j, k, i_RK) = ( q_guess(1:n_vars) - q_si(1:n_vars))      &
-                  / ( dt*a_diag ) 
+          !   NH(1:n_vars, j, k, i_RK) = ( q_rk(1:n_vars,j,k,i_RK) - q_si(1:n_vars))      &
+          !        / ( dt*a_diag ) 
 
-          END IF
+          !END IF
 
-          ! Store the solution at the end of the i_RK step
-          q_rk( 1:n_vars, j, k, i_RK ) = q_guess
 
-          IF ( verbose_level .GE. 2 ) THEN
+          !IF ( verbose_level .GE. 2 ) THEN
 
-             WRITE(*,*) 'imex_RK_solver: qc',q_guess
+          !   WRITE(*,*) 'imex_RK_solver: qc',q_guess
 
-             IF ( q_guess(1) .GT. 0.0_wp ) THEN
+          !   IF ( q_rk(1:n_vars, j, k, i_RK) .GT. 0.0_wp ) THEN
 
-                CALL qc_to_qp( q_guess, qp(1:n_vars+2, j, k), p_dyn )
-                WRITE(*,*) 'imex_RK_solver: qp',qp(1:n_vars+2, j, k)
+          !      CALL qc_to_qp( q_guess, qp(1:n_vars+2, j, k), p_dyn )
+          !      WRITE(*,*) 'imex_RK_solver: qp',qp(1:n_vars+2, j, k)
 
-             END IF
-             
-             READ(*,*)
+          !   END IF
+          !   
+          !   READ(*,*)
 
-          END IF
+          !END IF
+
+       !$OMP parallel DO collapse(2) private( q_guess, q_si, Rj_not_impl)
+       DO j = 1, comp_cells_x
+       DO k = 1, comp_cells_y
 
 
           IF ( omega_tilde(i_RK) .GT. 0.0_wp ) THEN
@@ -1273,8 +1295,7 @@ CONTAINS
           END IF
 
        end do
-       END DO solve_cells_loop
-
+       END DO 
        !$OMP END PARALLEL DO
 
        IF ( omega_tilde(i_RK) .GT. 0.0_wp ) THEN
