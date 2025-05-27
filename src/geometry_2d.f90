@@ -117,6 +117,7 @@ MODULE geometry_2d
 
   REAL(wp), ALLOCATABLE :: cell_source_fractions(:,:)
 
+  !$omp declare target (pi_g)
   REAL(wp) :: pi_g
 
   INTEGER :: n_topography_profile_x, n_topography_profile_y
@@ -325,6 +326,7 @@ CONTAINS
     IF ( liquid_vaporization_flag ) CALL topography_zones
 
     pi_g = 4.0_wp * ATAN(1.0_wp)
+    !$omp target update to (pi_g)
 
     IF ( bottom_radial_source_flag ) THEN
 
@@ -1629,6 +1631,8 @@ CONTAINS
     parameter (P20=-0.000058113607504413816772E0_wp)
     !
     
+    !$omp declare target
+
     IF (abs(p).lt.0.01159E0_wp) THEN
 
        lambertws=-1.E0_wp+p*(1.E0_wp+p*(P2+p*(P3+p*(P4+p*(P5+p*P6)))))
@@ -1658,6 +1662,7 @@ CONTAINS
     REAL(wp), INTENT(IN) :: z
     REAL(wp) :: w1,w2
     REAL(wp) :: z1,z2
+    !$omp declare target
 
     w1 = lambertwm1(z)
     z1 = w1 * EXP(w1)
@@ -2074,6 +2079,7 @@ CONTAINS
          7.04831847180424675988d01,-1.20187763547154743238d01, &
          -7.99243595776339741065d00,-2.99999894040324959612d00, &
          1.99999999999048104167d00/
+    !$omp declare target
 
     x = arg
 
@@ -2242,6 +2248,7 @@ CONTAINS
     integer :: i, j, m
     REAL(wp) :: p1, p2, p3, pp, xl, xm, z, z1
     REAL(wp), parameter :: eps=10.0_wp*epsilon(1.0_wp)
+    !$omp declare target
 
     m = (n+1)/2
     xm = 0.5_wp*(x2+x1)

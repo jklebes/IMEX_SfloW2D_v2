@@ -1451,7 +1451,7 @@ CONTAINS
     REAL(wp) :: r_alphag(n_add_gas) !< real-value add. gas volume fractions
     REAL(wp) :: r_red_grav
 
-    !$omp declare target
+    !$omp declare target 
 
     CALL r_phys_var( qc , r_h , r_u , r_v , r_alphas , r_rho_m , r_T ,          &
          r_alphal , r_alphag , r_red_grav , p_dyn )
@@ -1463,7 +1463,7 @@ CONTAINS
 
     qp(4) = r_T
 
-    IF ( alpha_flag ) THEN
+    IF ( alpha_flag ) THEN !TODO  instead, +r_h * alpha_flag
 
        qp(5:4+n_solid) = r_alphas(1:n_solid)
        qp(4+n_solid+1:4+n_solid+n_add_gas) = r_alphag(1:n_add_gas)
@@ -1480,7 +1480,6 @@ CONTAINS
     qp(n_vars+1) = r_u
     qp(n_vars+2) = r_v
 
-    RETURN
 
   END SUBROUTINE qc_to_qp
 

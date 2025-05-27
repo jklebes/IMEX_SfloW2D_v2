@@ -974,6 +974,7 @@ CONTAINS
     USE geometry_2d, ONLY : B_nodata
 
 !!$    USE parameters_2d, ONLY : time_param, bottom_radial_source_flag
+    USE parameters_2d !it's here for omp safety target updates , move them later
     
     IMPLICIT NONE
 
@@ -1074,11 +1075,12 @@ CONTAINS
                - expl_terms(1:n_eqns, j, k, 1:i_RK), a_tilde(1:i_RK) )            &
                - MATMUL( NH(1:n_eqns, j, k, 1:i_RK) + SI_NH(1:n_eqns, j, k, 1:i_RK), &
                a_dirk(1:i_RK) ) ))
-          CALL qc_to_qp(q_fv(1:n_vars, j, k), qp(1:n_vars+2, j, k), p_dyn )
+          !CALL qc_to_qp(q_fv(1:n_vars, j, k), qp(1:n_vars+2, j, k), p_dyn )
        end do
        end do
        !$omp end teams distribute parallel do
        !$omp end target
+       !$omp target update from (p_dyn)
 
 
           !IF ( verbose_level .GE. 2 ) THEN
@@ -1101,7 +1103,8 @@ CONTAINS
           !END IF
 
           adiag_pos:IF ( a_diag .NE. 0.0_wp ) THEN
-       !$OMP parallel DO collapse(2) private( q_guess, q_si, Rj_not_impl)
+       !!$OMP target
+       !$OMP teams distribute parallel DO collapse(2) private( q_guess, q_si, Rj_not_impl)
        solve_cells_loop:DO j = 1, comp_cells_x
        DO k = 1, comp_cells_y
 
@@ -1224,7 +1227,8 @@ CONTAINS
                   / ( dt*a_diag ) 
        end do
        END DO solve_cells_loop
-       !$OMP END PARALLEL DO
+       !$OMP END teams distribute PARALLEL DO
+       !!$OMP end target
 
 
           END IF adiag_pos
@@ -1255,7 +1259,10 @@ CONTAINS
           !END IF
 
           IF ( omega_tilde(i_RK) .GT. 0.0_wp ) THEN
-       !$OMP parallel DO collapse(2) private( q_guess, q_si, Rj_not_impl)
+       !$OMP target update to (n_solid, n_add_gas, alpha_flag, liquid_flag, gas_flag) !used in qc_to_qp
+       !$OMP target update to(i_RK, T_ambient, n_vars)
+       !!$OMP target map(always, tofrom: q_rk)  !TODO problem: pdyn comes out nan on gpu/copied back 0
+       !$OMP teams distribute parallel DO collapse(2) 
        DO j = 1, comp_cells_x
        DO k = 1, comp_cells_y
 
@@ -1272,6 +1279,16 @@ CONTAINS
                 qp_rk(4, j, k, i_RK) = T_ambient
 
              END IF
+       end do
+       END DO 
+       !$OMP END teams distribute PARALLEL DO
+       !!$omp end target
+       !$OMP target update from (p_dyn)
+
+       !!$OMP target
+       !$OMP teams distribute parallel DO collapse(2) 
+       DO j = 1, comp_cells_x
+       DO k = 1, comp_cells_y
 
              ! Eval gravity term and radial bottom source terms
              CALL eval_expl_terms( B_prime_x(j, k), B_prime_y(j, k),            &
@@ -1283,7 +1300,8 @@ CONTAINS
 
        end do
        END DO 
-       !$OMP END PARALLEL DO
+       !$OMP END teams distribute PARALLEL DO
+       !!$omp end target
 
           ! Eval and store the explicit hyperbolic (fluxes) terms
           CALL eval_hyperbolic_terms(                                           &
