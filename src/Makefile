@@ -155,13 +155,13 @@ am__define_uniq_tagged_files = \
   done | $(am__uniquify_input)`
 am__DIST_COMMON = $(srcdir)/Makefile.in
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
-ACLOCAL = ${SHELL} '/home/jklebes/IMEX_SfloW2D_v2/missing' aclocal-1.16
+ACLOCAL = ${SHELL} '/home/aac/shared/teams/dcgpu_training/epcc/jklebes/IMEX_SfloW2D_v2/missing' aclocal-1.16
 AMTAR = $${TAR-tar}
 AM_DEFAULT_VERBOSITY = 1
-AUTOCONF = ${SHELL} '/home/jklebes/IMEX_SfloW2D_v2/missing' autoconf
-AUTOHEADER = ${SHELL} '/home/jklebes/IMEX_SfloW2D_v2/missing' autoheader
-AUTOMAKE = ${SHELL} '/home/jklebes/IMEX_SfloW2D_v2/missing' automake-1.16
-AWK = gawk
+AUTOCONF = ${SHELL} '/home/aac/shared/teams/dcgpu_training/epcc/jklebes/IMEX_SfloW2D_v2/missing' autoconf
+AUTOHEADER = ${SHELL} '/home/aac/shared/teams/dcgpu_training/epcc/jklebes/IMEX_SfloW2D_v2/missing' autoheader
+AUTOMAKE = ${SHELL} '/home/aac/shared/teams/dcgpu_training/epcc/jklebes/IMEX_SfloW2D_v2/missing' automake-1.16
+AWK = mawk
 CSCOPE = cscope
 CTAGS = ctags
 CYGPATH_W = echo
@@ -171,21 +171,18 @@ ECHO_N = -n
 ECHO_T = 
 ETAGS = etags
 EXEEXT = 
-FC =  /home/jklebes/offload/install/bin/gfortran 
-#FC = gfortran
-FCFLAGS = #-mp=gpu #-Minfo -gpu=managed #-fopenmp -Ofast -funroll-all-loops '-foffload=-lm -lgfortran'
-FCFLAGS = -fopenmp -Ofast -funroll-all-loops '-foffload=-lm -lgfortran'
+FC = amdflang
+FCFLAGS = '' #-fopenmp -Ofast -funroll-all-loops
 INSTALL = /usr/bin/install -c
 INSTALL_DATA = ${INSTALL} -m 644
 INSTALL_PROGRAM = ${INSTALL}
 INSTALL_SCRIPT = ${INSTALL}
 INSTALL_STRIP_PROGRAM = $(install_sh) -c -s
-CUDA ?= /opt/cuda-12.2.1/
-LDFLAGS = # -L$(CUDA)/targets/x86_64-linux/lib -lcudart
+LDFLAGS = 
 LIBOBJS = 
-LIBS = -lm -lgfortran -llapack
+LIBS = -lm #-llapack
 LTLIBOBJS = 
-MAKEINFO = ${SHELL} '/home/jklebes/IMEX_SfloW2D_v2/missing' makeinfo
+MAKEINFO = ${SHELL} '/home/aac/shared/teams/dcgpu_training/epcc/jklebes/IMEX_SfloW2D_v2/missing' makeinfo
 MKDIR_P = /usr/bin/mkdir -p
 OBJEXT = o
 PACKAGE = imex_sflow2d
@@ -197,14 +194,14 @@ PACKAGE_URL =
 PACKAGE_VERSION = 1.0
 PATH_SEPARATOR = :
 SET_MAKE = 
-SHELL = /bin/sh
+SHELL = /bin/bash
 STRIP = 
 VERSION = 1.0
-abs_builddir = /home/jklebes/IMEX_SfloW2D_v2/src
-abs_srcdir = /home/jklebes/IMEX_SfloW2D_v2/src
-abs_top_builddir = /home/jklebes/IMEX_SfloW2D_v2
-abs_top_srcdir = /home/jklebes/IMEX_SfloW2D_v2
-ac_ct_FC =  /home/jklebes/offload/install/bin/gfortran
+abs_builddir = /home/aac/shared/teams/dcgpu_training/epcc/jklebes/IMEX_SfloW2D_v2/src
+abs_srcdir = /home/aac/shared/teams/dcgpu_training/epcc/jklebes/IMEX_SfloW2D_v2/src
+abs_top_builddir = /home/aac/shared/teams/dcgpu_training/epcc/jklebes/IMEX_SfloW2D_v2
+abs_top_srcdir = /home/aac/shared/teams/dcgpu_training/epcc/jklebes/IMEX_SfloW2D_v2
+ac_ct_FC = 
 am__leading_dot = .
 am__tar = $${TAR-tar} chof - "$$tardir"
 am__untar = $${TAR-tar} xf -
@@ -220,7 +217,7 @@ host_alias =
 htmldir = ${docdir}
 includedir = ${prefix}/include
 infodir = ${datarootdir}/info
-install_sh = ${SHELL} /home/jklebes/IMEX_SfloW2D_v2/install-sh
+install_sh = ${SHELL} /home/aac/shared/teams/dcgpu_training/epcc/jklebes/IMEX_SfloW2D_v2/install-sh
 libdir = ${exec_prefix}/lib
 libexecdir = ${exec_prefix}/libexec
 localedir = ${datarootdir}/locale
@@ -255,8 +252,8 @@ IMEX_SfloW2D_SOURCES = \
                 IMEX_SfloW2D.f90
 
 FCDEBUGFLAGS = -Wall -g
-MPFC =   /home/jklebes/offload/install/bin/gfortran
-LINKER =  /home/jklebes/offload/install/bin/gfortran
+MPFC = gfortran
+LINKER = gfortran
 all: all-am
 
 .SUFFIXES:

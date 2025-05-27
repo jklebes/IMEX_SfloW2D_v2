@@ -1701,13 +1701,13 @@ CONTAINS
 
           IF ( wp .EQ. sp ) THEN
 
-             CALL SGESV(n_eqns, 1, left_matrix, n_eqns, pivot, desc_dir_temp,  &
-                  n_eqns, ok)
+             !CALL SGESV(n_eqns, 1, left_matrix, n_eqns, pivot, desc_dir_temp,  &
+              !    n_eqns, ok)
 
           ELSE
 
-             CALL DGESV(n_eqns, 1, left_matrix, n_eqns, pivot, desc_dir_temp,  &
-                  n_eqns, ok)
+             !CALL DGESV(n_eqns, 1, left_matrix, n_eqns, pivot, desc_dir_temp,  &
+             !     n_eqns, ok)
             
           END IF
 
@@ -1759,13 +1759,13 @@ CONTAINS
              
              IF ( wp .EQ. sp ) THEN
                 
-                CALL SGESV(n_nh, 1, left_matrix_small22, n_nh, pivot_small2,  &
-                     desc_dir_small2, n_nh, ok)
+                !CALL SGESV(n_nh, 1, left_matrix_small22, n_nh, pivot_small2,  &
+                !     desc_dir_small2, n_nh, ok)
                 
              ELSE
                 
-                CALL DGESV(n_nh, 1, left_matrix_small22, n_nh, pivot_small2,  &
-                     desc_dir_small2, n_nh, ok)
+                !CALL DGESV(n_nh, 1, left_matrix_small22, n_nh, pivot_small2,  &
+                !     desc_dir_small2, n_nh, ok)
                 
              END IF
              
