@@ -974,7 +974,6 @@ CONTAINS
     USE geometry_2d, ONLY : B_nodata
 
 !!$    USE parameters_2d, ONLY : time_param, bottom_radial_source_flag
-    USE parameters_2d !it's here for omp safety target updates , move them later
     
     IMPLICIT NONE
 
@@ -1075,12 +1074,10 @@ CONTAINS
                - expl_terms(1:n_eqns, j, k, 1:i_RK), a_tilde(1:i_RK) )            &
                - MATMUL( NH(1:n_eqns, j, k, 1:i_RK) + SI_NH(1:n_eqns, j, k, 1:i_RK), &
                a_dirk(1:i_RK) ) ))
-          !CALL qc_to_qp(q_fv(1:n_vars, j, k), qp(1:n_vars+2, j, k), p_dyn )
        end do
        end do
        !$omp end teams distribute parallel do
        !$omp end target
-       !$omp target update from (p_dyn)
 
 
           !IF ( verbose_level .GE. 2 ) THEN
@@ -1103,10 +1100,10 @@ CONTAINS
           !END IF
 
           adiag_pos:IF ( a_diag .NE. 0.0_wp ) THEN
-       !!$OMP target
-       !$OMP teams distribute parallel DO collapse(2) private( q_guess, q_si, Rj_not_impl)
+       !$OMP parallel DO collapse(2) private( q_guess, q_si, Rj_not_impl)
        solve_cells_loop:DO j = 1, comp_cells_x
        DO k = 1, comp_cells_y
+          CALL qc_to_qp(q_fv(1:n_vars, j, k), qp(1:n_vars+2, j, k), p_dyn )
 
              pos_thick:IF ( q_fv(1, j, k) .GT.  0.0_wp )  THEN
 
@@ -1227,8 +1224,7 @@ CONTAINS
                   / ( dt*a_diag ) 
        end do
        END DO solve_cells_loop
-       !$OMP END teams distribute PARALLEL DO
-       !!$OMP end target
+       !$OMP END PARALLEL DO
 
 
           END IF adiag_pos
@@ -1259,16 +1255,14 @@ CONTAINS
           !END IF
 
           IF ( omega_tilde(i_RK) .GT. 0.0_wp ) THEN
-       !$OMP target update to (n_solid, n_add_gas, alpha_flag, liquid_flag, gas_flag) !used in qc_to_qp
-       !$OMP target update to(i_RK, T_ambient, n_vars)
-       !!$OMP target map(always, tofrom: q_rk)  !TODO problem: pdyn comes out nan on gpu/copied back 0
-       !$OMP teams distribute parallel DO collapse(2) 
+      !!$OMP target
+       !$OMP teams distribute parallel DO collapse(2)
        DO j = 1, comp_cells_x
        DO k = 1, comp_cells_y
 
 
           
-             IF ( q_rk(1, j, k, i_RK) .GT. 0.0_wp ) THEN
+             IF (solve_mask(j,k) .and.  q_rk(1, j, k, i_RK) .GT. 0.0_wp ) THEN
 
                 CALL qc_to_qp( q_rk(1:n_vars, j, k, i_RK),                        &
                      qp_rk(1:n_vars+2, j, k, i_RK), p_dyn )
@@ -1280,13 +1274,11 @@ CONTAINS
 
              END IF
        end do
-       END DO 
+       end do
        !$OMP END teams distribute PARALLEL DO
-       !!$omp end target
-       !$OMP target update from (p_dyn)
-
-       !!$OMP target
-       !$OMP teams distribute parallel DO collapse(2) 
+       !!$OMP end target
+      !!$OMP target
+       !$OMP teams distribute parallel DO collapse(2)
        DO j = 1, comp_cells_x
        DO k = 1, comp_cells_y
 
@@ -1301,7 +1293,7 @@ CONTAINS
        end do
        END DO 
        !$OMP END teams distribute PARALLEL DO
-       !!$omp end target
+       !!$OMP end target
 
           ! Eval and store the explicit hyperbolic (fluxes) terms
           CALL eval_hyperbolic_terms(                                           &
@@ -1719,13 +1711,13 @@ CONTAINS
 
           IF ( wp .EQ. sp ) THEN
 
-             CALL SGESV(n_eqns, 1, left_matrix, n_eqns, pivot, desc_dir_temp,  &
-                  n_eqns, ok)
+             !CALL SGESV(n_eqns, 1, left_matrix, n_eqns, pivot, desc_dir_temp,  &
+              !    n_eqns, ok)
 
           ELSE
 
-             CALL DGESV(n_eqns, 1, left_matrix, n_eqns, pivot, desc_dir_temp,  &
-                  n_eqns, ok)
+             !CALL DGESV(n_eqns, 1, left_matrix, n_eqns, pivot, desc_dir_temp,  &
+             !     n_eqns, ok)
             
           END IF
 
@@ -1777,13 +1769,13 @@ CONTAINS
              
              IF ( wp .EQ. sp ) THEN
                 
-                CALL SGESV(n_nh, 1, left_matrix_small22, n_nh, pivot_small2,  &
-                     desc_dir_small2, n_nh, ok)
+                !CALL SGESV(n_nh, 1, left_matrix_small22, n_nh, pivot_small2,  &
+                !     desc_dir_small2, n_nh, ok)
                 
              ELSE
                 
-                CALL DGESV(n_nh, 1, left_matrix_small22, n_nh, pivot_small2,  &
-                     desc_dir_small2, n_nh, ok)
+                !CALL DGESV(n_nh, 1, left_matrix_small22, n_nh, pivot_small2,  &
+                !     desc_dir_small2, n_nh, ok)
                 
              END IF
              
