@@ -1074,7 +1074,6 @@ CONTAINS
                - expl_terms(1:n_eqns, j, k, 1:i_RK), a_tilde(1:i_RK) )            &
                - MATMUL( NH(1:n_eqns, j, k, 1:i_RK) + SI_NH(1:n_eqns, j, k, 1:i_RK), &
                a_dirk(1:i_RK) ) ))
-          CALL qc_to_qp(q_fv(1:n_vars, j, k), qp(1:n_vars+2, j, k), p_dyn )
        end do
        end do
        !$omp end teams distribute parallel do
@@ -1104,6 +1103,7 @@ CONTAINS
        !$OMP parallel DO collapse(2) private( q_guess, q_si, Rj_not_impl)
        solve_cells_loop:DO j = 1, comp_cells_x
        DO k = 1, comp_cells_y
+          CALL qc_to_qp(q_fv(1:n_vars, j, k), qp(1:n_vars+2, j, k), p_dyn )
 
              pos_thick:IF ( q_fv(1, j, k) .GT.  0.0_wp )  THEN
 
@@ -1255,13 +1255,14 @@ CONTAINS
           !END IF
 
           IF ( omega_tilde(i_RK) .GT. 0.0_wp ) THEN
-       !$OMP parallel DO collapse(2) private( q_guess, q_si, Rj_not_impl)
+      !!$OMP target
+       !$OMP teams distribute parallel DO collapse(2)
        DO j = 1, comp_cells_x
        DO k = 1, comp_cells_y
 
 
           
-             IF ( q_rk(1, j, k, i_RK) .GT. 0.0_wp ) THEN
+             IF (solve_mask(j,k) .and.  q_rk(1, j, k, i_RK) .GT. 0.0_wp ) THEN
 
                 CALL qc_to_qp( q_rk(1:n_vars, j, k, i_RK),                        &
                      qp_rk(1:n_vars+2, j, k, i_RK), p_dyn )
@@ -1272,6 +1273,14 @@ CONTAINS
                 qp_rk(4, j, k, i_RK) = T_ambient
 
              END IF
+       end do
+       end do
+       !$OMP END teams distribute PARALLEL DO
+       !!$OMP end target
+      !!$OMP target
+       !$OMP teams distribute parallel DO collapse(2)
+       DO j = 1, comp_cells_x
+       DO k = 1, comp_cells_y
 
              ! Eval gravity term and radial bottom source terms
              CALL eval_expl_terms( B_prime_x(j, k), B_prime_y(j, k),            &
@@ -1283,7 +1292,8 @@ CONTAINS
 
        end do
        END DO 
-       !$OMP END PARALLEL DO
+       !$OMP END teams distribute PARALLEL DO
+       !!$OMP end target
 
           ! Eval and store the explicit hyperbolic (fluxes) terms
           CALL eval_hyperbolic_terms(                                           &

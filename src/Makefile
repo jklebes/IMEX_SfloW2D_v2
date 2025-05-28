@@ -172,15 +172,15 @@ ECHO_T =
 ETAGS = etags
 EXEEXT = 
 FC = amdflang
-FCFLAGS = '' #-fopenmp -Ofast -funroll-all-loops
+FCFLAGS = -fopenmp -fopenmp-force-usm --offload-arch=gfx942 #-Ofast -funroll-all-loops
 INSTALL = /usr/bin/install -c
 INSTALL_DATA = ${INSTALL} -m 644
 INSTALL_PROGRAM = ${INSTALL}
 INSTALL_SCRIPT = ${INSTALL}
 INSTALL_STRIP_PROGRAM = $(install_sh) -c -s
-LDFLAGS = 
+LDFLAGS = $(FCFLAGS) -lflang_rt.hostdevice 
 LIBOBJS = 
-LIBS = -lm #-llapack
+LIBS = -lm # -llapack
 LTLIBOBJS = 
 MAKEINFO = ${SHELL} '/home/aac/shared/teams/dcgpu_training/epcc/jklebes/IMEX_SfloW2D_v2/missing' makeinfo
 MKDIR_P = /usr/bin/mkdir -p
@@ -252,8 +252,8 @@ IMEX_SfloW2D_SOURCES = \
                 IMEX_SfloW2D.f90
 
 FCDEBUGFLAGS = -Wall -g
-MPFC = gfortran
-LINKER = gfortran
+MPFC = amdflang
+LINKER = amdflang
 all: all-am
 
 .SUFFIXES:
