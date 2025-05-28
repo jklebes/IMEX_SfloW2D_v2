@@ -410,6 +410,7 @@ CONTAINS
 
     USE parameters_2d, ONLY : eps_sing , eps_sing4 , vertical_profiles_flag
     IMPLICIT none
+    !$omp declare target
 
     REAL(wp), INTENT(IN) :: r_qj(n_vars)       !< real-value conservative var
     REAL(wp), INTENT(OUT) :: r_h               !< real-value flow thickness
@@ -487,7 +488,6 @@ CONTAINS
 
     REAL(wp) :: u_log_avg
 
-    !$omp declare target
 
     ! compute solid mass fractions
     IF ( r_qj(1) .GT. EPSILON(1.0_wp) ) THEN
@@ -517,6 +517,7 @@ CONTAINS
        r_red_grav = 0.0_wp
        r_rho_c = rho_a_amb
        p_dyn = 0.0_wp
+       r_h = 0.0
        RETURN
 
     END IF
@@ -747,7 +748,7 @@ CONTAINS
 
           denominator = (x2 - x1) - (x1 - x0)
 
-          IF ( ABS(denominator) .LT. 0.1*abs_tol ) EXIT aitken_loop
+          IF ( ABS(denominator) .LT. 0.1_wp*abs_tol ) EXIT aitken_loop
 
           aitkenX = x2 - ( (x2 - x1)**2 ) / denominator
 
@@ -806,7 +807,7 @@ CONTAINS
 
     USE geometry_2d, ONLY : z_quad , w_quad
     
-    USE geometry_2d, ONLY : calcei , gaulegf
+    USE geometry_2d, ONLY : gaulegf
 
     IMPLICIT NONE
 
@@ -1436,6 +1437,7 @@ CONTAINS
   SUBROUTINE qc_to_qp(qc,qp,p_dyn)
 
     IMPLICIT none
+    !$omp declare target 
 
     REAL(wp), INTENT(IN) :: qc(n_vars)
     REAL(wp), INTENT(OUT) :: qp(n_vars+2)
@@ -1451,10 +1453,10 @@ CONTAINS
     REAL(wp) :: r_alphag(n_add_gas) !< real-value add. gas volume fractions
     REAL(wp) :: r_red_grav
 
-    !$omp declare target 
 
     CALL r_phys_var( qc , r_h , r_u , r_v , r_alphas , r_rho_m , r_T ,          &
          r_alphal , r_alphag , r_red_grav , p_dyn )
+  
 
     qp(1) = r_h
 
@@ -1463,23 +1465,21 @@ CONTAINS
 
     qp(4) = r_T
 
-    IF ( alpha_flag ) THEN !TODO  instead, +r_h * alpha_flag
 
        qp(5:4+n_solid) = r_alphas(1:n_solid)
        qp(4+n_solid+1:4+n_solid+n_add_gas) = r_alphag(1:n_add_gas)
        IF ( gas_flag .AND. liquid_flag ) qp(n_vars) = r_alphal
 
-    ELSE
+    IF ( .not. alpha_flag ) THEN !TODO  instead, +r_h * alpha_flag
 
-       qp(5:4+n_solid) = r_alphas(1:n_solid) * r_h
-       qp(4+n_solid+1:4+n_solid+n_add_gas) = r_alphag(1:n_add_gas) * r_h
-       IF ( gas_flag .AND. liquid_flag ) qp(n_vars) = r_alphal * r_h
+       qp(5:4+n_solid+n_add_gas) = qp(5:4+n_solid+n_add_gas) * r_h
+       qp(n_vars) = qp(n_vars) * r_h
 
     END IF
 
     qp(n_vars+1) = r_u
     qp(n_vars+2) = r_v
-
+    qp = r_h
 
   END SUBROUTINE qc_to_qp
 
@@ -2264,7 +2264,6 @@ CONTAINS
     USE geometry_2d, ONLY : z_quad, w_quad
     
     USE geometry_2d, ONLY : lambertw,lambertw0,lambertwm1
-    USE geometry_2d, ONLY : calcei
     USE geometry_2d, ONLY : gaulegf
 
     IMPLICIT none
@@ -2561,7 +2560,6 @@ CONTAINS
     USE geometry_2d, ONLY : z_quad , w_quad
     
     USE geometry_2d, ONLY : lambertw,lambertw0,lambertwm1
-    USE geometry_2d, ONLY : calcei
     USE geometry_2d, ONLY : gaulegf
     
 

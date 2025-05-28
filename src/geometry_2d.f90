@@ -1696,13 +1696,13 @@ CONTAINS
     !               "Precise and fast computation of Lambert W-functions
     !                without transcendental function evaluations"
     !
+    !$omp declare target
     integer n1,n,j,jmax,nh
     real(wp) z,p2,y,w,wj,yj,f0,f1,f00,f11,f0y
     real(wp) Em1,E1,ej,em(-1:64),g(0:64),a(12),b(12)
     logical first/.TRUE./
     parameter (E1=2.718281828459045235d0,Em1=1.d0/E1)
     save first,em,g,a,b
-    !$omp declare target
     if(first) then
        first=.FALSE.;em(-1)=E1;ej=1.d0;em(0)=1.d0;g(0)=0.d0
        do j=1,64
@@ -1714,7 +1714,7 @@ CONTAINS
        enddo
     endif
     if(abs(z).lt.0.05d0) then
-       lambertw0=z*(1.d0-z*(1.0-z*(1.5d0-z*(2.6666666666666666667d0 &
+       lambertw0=z*(1.d0-z*(1.0d0-z*(1.5d0-z*(2.6666666666666666667d0 &
             -z*(5.2083333333333333333d0-z*(10.8d0-z*(23.343055555555555556d0 &
             -z*(52.012698412698412698d0-z*(118.62522321428571429d0 &
             -z*(275.57319223985890653d0-z*(649.78717234347442681d0 &
@@ -1868,7 +1868,7 @@ CONTAINS
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
-  subroutine calcei ( arg, result, int )
+  subroutine calcei ( arg, result, int ) !Never used
 
     !*****************************************************************************80
     !
@@ -2079,7 +2079,6 @@ CONTAINS
          7.04831847180424675988d01,-1.20187763547154743238d01, &
          -7.99243595776339741065d00,-2.99999894040324959612d00, &
          1.99999999999048104167d00/
-    !$omp declare target
 
     x = arg
 

@@ -983,6 +983,7 @@ CONTAINS
     REAL(wp):: Rj_not_impl(n_eqns)
 
     REAL(wp):: p_dyn
+    REAL(wp):: q_tmp
 
     IF ( verbose_level .GE. 1 ) WRITE(*,*) 'solver, imex_RK_solver: beginning'
 
@@ -1069,11 +1070,12 @@ CONTAINS
 
           ! New solution at the i_RK step without the implicit  and
           ! semi-implicit term
-          q_fv( 1:n_vars, j, k ) = solve_mask_int(j,k) * ( q0( 1:n_vars, j, k )                     &
+          q_fv( 1:n_vars, j, k ) = ( q0( 1:n_vars, j, k )                     &
                - dt * (MATMUL( divFlux(1:n_eqns, j, k, 1:i_RK)                     &
                - expl_terms(1:n_eqns, j, k, 1:i_RK), a_tilde(1:i_RK) )            &
                - MATMUL( NH(1:n_eqns, j, k, 1:i_RK) + SI_NH(1:n_eqns, j, k, 1:i_RK), &
                a_dirk(1:i_RK) ) ))
+          CALL qc_to_qp(q_fv(1:n_vars, j, k), qp(1:n_vars+2, j, k), p_dyn )
        end do
        end do
        !$omp end teams distribute parallel do
@@ -1103,7 +1105,6 @@ CONTAINS
        !$OMP parallel DO collapse(2) private( q_guess, q_si, Rj_not_impl)
        solve_cells_loop:DO j = 1, comp_cells_x
        DO k = 1, comp_cells_y
-          CALL qc_to_qp(q_fv(1:n_vars, j, k), qp(1:n_vars+2, j, k), p_dyn )
 
              pos_thick:IF ( q_fv(1, j, k) .GT.  0.0_wp )  THEN
 
@@ -1255,18 +1256,15 @@ CONTAINS
           !END IF
 
           IF ( omega_tilde(i_RK) .GT. 0.0_wp ) THEN
-      !!$OMP target
-       !$OMP teams distribute parallel DO collapse(2)
+      !$OMP target teams distribute parallel do collapse(2) default(none) private(p_dyn) & 
+      !$OMP shared(q_rk, qp_rk, n_vars, comp_cells_x,comp_cells_y, i_RK, T_ambient)
        DO j = 1, comp_cells_x
        DO k = 1, comp_cells_y
 
-
-          
-             IF (solve_mask(j,k) .and.  q_rk(1, j, k, i_RK) .GT. 0.0_wp ) THEN
+             IF (q_rk(1,j,k,i_RK) > 0.000001_wp ) then
 
                 CALL qc_to_qp( q_rk(1:n_vars, j, k, i_RK),                        &
                      qp_rk(1:n_vars+2, j, k, i_RK), p_dyn )
-
              ELSE
 
                 qp_rk(1:n_vars+2, j, k, i_RK) = 0.0_wp
@@ -1275,8 +1273,8 @@ CONTAINS
              END IF
        end do
        end do
-       !$OMP END teams distribute PARALLEL DO
-       !!$OMP end target
+       !$OMP END target teams distribute PARALLEL DO
+
       !!$OMP target
        !$OMP teams distribute parallel DO collapse(2)
        DO j = 1, comp_cells_x

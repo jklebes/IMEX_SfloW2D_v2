@@ -3985,7 +3985,7 @@ CONTAINS
 
     OPEN(backup_unit,file=bak_name,status='unknown',delim='quote')
 
-    WRITE(backup_unit, run_parameters )
+    WRITE(backup_unit, nml=run_parameters )
 
     IF ( restart ) THEN
 
