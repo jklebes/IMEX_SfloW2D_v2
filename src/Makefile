@@ -172,7 +172,8 @@ ECHO_T =
 ETAGS = etags
 EXEEXT = 
 FC = amdflang
-FCFLAGS = -fopenmp -fopenmp-force-usm --offload-arch=gfx942 #-Ofast -funroll-all-loops
+FCFLAGS = -fopenmp -fopenmp-targets=amdgcn-amd-amdhsa
+#FCFLAGS = -fopenmp -fopenmp-force-usm --offload-arch=gfx942 #-Ofast -funroll-all-loops #-fopenmp-targets=amdgcn-amd-amdhsa
 INSTALL = /usr/bin/install -c
 INSTALL_DATA = ${INSTALL} -m 644
 INSTALL_PROGRAM = ${INSTALL}
