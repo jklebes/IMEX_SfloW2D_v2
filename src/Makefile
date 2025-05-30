@@ -174,7 +174,7 @@ EXEEXT =
 FC =  /home/jklebes/offload/install/bin/gfortran 
 #FC = gfortran
 FCFLAGS = #-mp=gpu #-Minfo -gpu=managed #-fopenmp -Ofast -funroll-all-loops '-foffload=-lm -lgfortran'
-FCFLAGS = -fopenmp -Ofast -funroll-all-loops '-foffload=-lm -lgfortran'
+FCFLAGS = -fopenmp -O0 -funroll-all-loops '-foffload=-lm -lgfortran'
 INSTALL = /usr/bin/install -c
 INSTALL_DATA = ${INSTALL} -m 644
 INSTALL_PROGRAM = ${INSTALL}
