@@ -1070,11 +1070,10 @@ CONTAINS
           ! New solution at the i_RK step without the implicit  and
           ! semi-implicit term
           q_fv( 1:n_vars, j, k ) = solve_mask_int(j,k) * ( q0( 1:n_vars, j, k )                     &
-               - dt * (MATMUL( divFlux(1:n_eqns, j, k, 1:i_RK)                     &
+               - dt * (MATvecMUL( divFlux(1:n_eqns, j, k, 1:i_RK)                     &
                - expl_terms(1:n_eqns, j, k, 1:i_RK), a_tilde(1:i_RK) )            &
-               - MATMUL( NH(1:n_eqns, j, k, 1:i_RK) + SI_NH(1:n_eqns, j, k, 1:i_RK), &
+               - MATvecMUL( NH(1:n_eqns, j, k, 1:i_RK) + SI_NH(1:n_eqns, j, k, 1:i_RK), &
                a_dirk(1:i_RK) ) ))
-          CALL qc_to_qp(q_fv(1:n_vars, j, k), qp(1:n_vars+2, j, k), p_dyn )
        end do
        end do
        !$omp end teams distribute parallel do
@@ -1104,6 +1103,7 @@ CONTAINS
        !$OMP parallel DO collapse(2) private( q_guess, q_si, Rj_not_impl)
        solve_cells_loop:DO j = 1, comp_cells_x
        DO k = 1, comp_cells_y
+          CALL qc_to_qp(q_fv(1:n_vars, j, k), qp(1:n_vars+2, j, k), p_dyn )
 
              pos_thick:IF ( q_fv(1, j, k) .GT.  0.0_wp )  THEN
 
@@ -1148,9 +1148,9 @@ CONTAINS
                 q_guess(1:n_vars) = q_si(1:n_vars)
 
 
-                Rj_not_impl =  ( MATMUL( divFlux(1:n_eqns, j, k, 1:i_RK-1) -       &
+                Rj_not_impl =  ( MATvecMUL( divFlux(1:n_eqns, j, k, 1:i_RK-1) -       &
                      expl_terms(1:n_eqns, j, k, 1:i_RK-1), a_tilde(1:i_RK-1) )     &
-                     - MATMUL( NH(1:n_eqns, j, k, 1:i_RK-1)                        &
+                     - MATvecMUL( NH(1:n_eqns, j, k, 1:i_RK-1)                        &
                      + SI_NH(1:n_eqns, j, k, 1:i_RK-1), a_dirk(1:i_RK-1) ) )      &
                      - a_diag*SI_NH(1:n_eqns, j, k, i_RK)
 
@@ -3775,5 +3775,23 @@ CONTAINS
     RETURN
     
   END SUBROUTINE eval_speeds
+
+  function matvecmul(a,b) result(c) 
+          !! own MATMUL implentation for special case matrx times vector
+          !! because libgfortran MATMUL is sometimes not linked on GPU
+          real(wp), dimension(:,:) :: a
+          real(wp), dimension(:) :: b
+          real(wp) :: c(size(a,1))
+          integer :: i, j, l1, l2
+          l1 = size(a,1)
+          l2 = size(a,2)
+          c = 0.0_wp
+          do i=1, l1
+          do j=1, l2
+            c(i) =  c(i) + b(j)*a(i,j)
+          end do
+          end do
+  end function
+
 
 END MODULE solver_2d
