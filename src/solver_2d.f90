@@ -969,6 +969,7 @@ CONTAINS
     USE constitutive_2d, ONLY : eval_expl_terms
 
     USE constitutive_2d, ONLY : T_ambient
+    USE constitutive_2d, ONLY : inv_rho_s
 
 
     USE geometry_2d, ONLY : B_nodata
@@ -1256,7 +1257,8 @@ CONTAINS
           !END IF
 
           IF ( omega_tilde(i_RK) .GT. 0.0_wp ) THEN
-       !$OMP target update to (T_ambient, i_RK, n_vars, gas_flag, liquid_flag)
+       !$OMP target update to (T_ambient, i_RK, n_vars, gas_flag, liquid_flag, n_solid, n_add_gas)
+       !$OMP target update to (energy_flag, eps_sing, vertical_profiles_flag, eps_sing4)
        !$OMP target teams distribute parallel DO collapse(2) default(none) private(p_dyn) &
        !$OMP shared(T_ambient, n_vars, i_RK, q_rk, qp_rk, comp_cells_x, comp_cells_y)
        DO j = 1, comp_cells_x
@@ -1278,7 +1280,7 @@ CONTAINS
        end do
        END DO 
        !$OMP END target teams distribute PARALLEL DO
-       !write(*,*) qp_rk(1,:,:,i_RK)
+       write(*,*) qp_rk(1,:,:,i_RK)
 
        !$OMP parallel DO collapse(2) private( q_guess, q_si, Rj_not_impl)
        DO j = 1, comp_cells_x
@@ -1426,7 +1428,7 @@ CONTAINS
 
        IF ( qp(4, j, k) .LT. 273.0_wp ) THEN
           
-          WRITE(*,*) 'temperature check'
+          WRITE(*,*) 'temperature check', qp(4,j,k)
           WRITE(*,*) j, k
           WRITE(*,*) 'qp new',qp(1:n_vars+2, j, k)
           WRITE(*,*) 'qc new',q(1:n_vars, j, k)
@@ -1456,7 +1458,7 @@ CONTAINS
 
           ELSE
 
-             WRITE(*,*) 'WARNING:SUM(qsolid)>q1',SUM(q(5:4+n_solid, j, k))-q(1, j, k)
+             WRITE(*,*) 'WARNING:SUM(qsolid)>q1',SUM(q(5:4+n_solid, j, k)),q(1, j, k)
              
              WRITE(*,*) 'j, k, n_RK',j, k, n_RK
              WRITE(*,*) 'dt',dt

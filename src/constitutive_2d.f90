@@ -11,7 +11,7 @@ MODULE constitutive_2d
 
   IMPLICIT none
 !$omp declare target (grav, friction_factor, rho_s, vonk, sc, k_s, z_dyn, rho_a_amb, t_ambient, sp_heat_a, sp_heat_g, sp_heat_s)
-!! all updated to gpu at time of reading in, except: sc, z_dyn
+!! all updated to gpu at time of reading in
 
 !$omp declare target (sp_heat_l,pres, inv_pres, rho_l, inv_rho_l, sp_heat_c, sp_gas_const_a, sp_gas_const_g)
 !! all updated to gpu at time of setting, except: sp_heat_c
@@ -530,7 +530,9 @@ CONTAINS
 
     r_xs_tot = SUM(r_xs)
 
-    IF ( gas_flag .AND. liquid_flag ) THEN
+    IF (gas_flag .AND. liquid_flag ) THEN
+
+    RETURN
 
        ! compute liquid mass fraction
        r_xl = r_qj(n_vars) * inv_qj1
@@ -564,10 +566,11 @@ CONTAINS
        END IF
 
        ! specific heaf of the mixutre: mass average of sp. heat pf phases
-       r_sp_heat_mix = DOT_PRODUCT( r_xs(1:n_solid) , sp_heat_s(1:n_solid) )    &
+        r_sp_heat_mix = DOT_PRODUCT( r_xs(1:n_solid) , sp_heat_s(1:n_solid) )    &
             + r_xc * r_sp_heat_c
 
     END IF
+
 
     ! compute temperature from energy
     IF ( r_qj(1) .GT. eps_sing ) THEN
@@ -590,6 +593,7 @@ CONTAINS
        r_T = T_ambient
 
     END IF
+
 
     IF ( gas_flag ) THEN
 
@@ -614,7 +618,7 @@ CONTAINS
     r_inv_rhom = r_xc * r_inv_rho_c
 
     do i_solid=1, n_solid !replaces dotproduct in case not known on GPU
-      r_inv_rhom = r_inv_rhom + r_xs(i_solid)*inv_rho_s(i_solid)
+      r_inv_rhom = r_inv_rhom + r_xs(1)* inv_rho_s(1)
      end do
 
     IF ( gas_flag .AND. liquid_flag ) THEN

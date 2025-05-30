@@ -445,6 +445,9 @@ CONTAINS
           WRITE(*,*) 'Please check the input file'
           STOP
 
+       else
+               !$omp target update to (n_solid)
+
        END IF
 
        ALLOCATE ( alphas_bcW(n_solid) )
@@ -831,6 +834,9 @@ CONTAINS
        WRITE(*,*) 'Please check the input file'
        STOP
 
+    else
+            !$omp target update to (n_solid)
+
     END IF
 
     IF ( n_add_gas .LT. 0 ) THEN
@@ -1182,8 +1188,8 @@ CONTAINS
           END IF
 
           kin_visc_c = kin_visc_l
-          !$omp target update to(kin_visc_c)
           sp_heat_c = sp_heat_l
+          !$omp target update to(kin_visc_c, sp_heat_c)
 
        END IF
 
@@ -3127,6 +3133,7 @@ CONTAINS
 
              ALLOCATE( z_quad(N_quad) , w_quad(N_quad) )
              CALL gaulegf(-1.0_wp, 1.0_wp, z_quad, w_quad, n_quad)
+             !$omp target update to(z_quad, w_quad)
 
           END IF
 
@@ -3136,6 +3143,8 @@ CONTAINS
              WRITE(*,*) 'Sc =' , Sc 
              WRITE(*,*) 'Please check the input file'
              STOP
+          else 
+                  !$omp target update to (sc)
 
           END IF
 
@@ -3144,6 +3153,8 @@ CONTAINS
              WRITE(*,*) 'WARNING: problem with namelist VERTICAL_PROFILES_PARAMETERS'
              WRITE(*,*) 'z_dyn =' , z_dyn
              WRITE(*,*) 'Dynamic pressure computed as depth-averaged value'
+          else 
+                  !$omp target update to (z_dyn)
 
           END IF
           
@@ -4541,6 +4552,7 @@ CONTAINS
           sp_heat_c = sp_heat_l
 
        END IF
+       !omp target update to (sp_heat_c)
 
        rho_m = SUM( rho_s(1:n_solid)*alphas_init(1:n_solid) ) + ( 1.0_wp -      &
             SUM( alphas_init(1:n_solid) ) ) * rho_c 
