@@ -1074,6 +1074,7 @@ CONTAINS
                - expl_terms(1:n_eqns, j, k, 1:i_RK), a_tilde(1:i_RK) )            &
                - MATvecMUL( NH(1:n_eqns, j, k, 1:i_RK) + SI_NH(1:n_eqns, j, k, 1:i_RK), &
                a_dirk(1:i_RK) ) ))
+          CALL qc_to_qp(q_fv(1:n_vars, j, k), qp(1:n_vars+2, j, k), p_dyn )
        end do
        end do
        !$omp end teams distribute parallel do
@@ -1103,7 +1104,6 @@ CONTAINS
        !$OMP parallel DO collapse(2) private( q_guess, q_si, Rj_not_impl)
        solve_cells_loop:DO j = 1, comp_cells_x
        DO k = 1, comp_cells_y
-          CALL qc_to_qp(q_fv(1:n_vars, j, k), qp(1:n_vars+2, j, k), p_dyn )
 
              pos_thick:IF ( q_fv(1, j, k) .GT.  0.0_wp )  THEN
 
@@ -1255,7 +1255,9 @@ CONTAINS
           !END IF
 
           IF ( omega_tilde(i_RK) .GT. 0.0_wp ) THEN
-       !$OMP parallel DO collapse(2) private( q_guess, q_si, Rj_not_impl)
+       !$OMP target update to (T_ambient, i_RK, n_vars)
+       !$OMP target teams distribute parallel DO collapse(2) default(none) private(p_dyn) &
+       !$OMP shared(T_ambient, n_vars, i_RK, q_rk, qp_rk, comp_cells_x, comp_cells_y)
        DO j = 1, comp_cells_x
        DO k = 1, comp_cells_y
 
@@ -1272,6 +1274,13 @@ CONTAINS
                 qp_rk(4, j, k, i_RK) = T_ambient
 
              END IF
+
+       end do
+       END DO 
+       !$OMP END target teams distribute PARALLEL DO
+       !$OMP parallel DO collapse(2) private( q_guess, q_si, Rj_not_impl)
+       DO j = 1, comp_cells_x
+       DO k = 1, comp_cells_y
 
              ! Eval gravity term and radial bottom source terms
              CALL eval_expl_terms( B_prime_x(j, k), B_prime_y(j, k),            &
