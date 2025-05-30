@@ -500,6 +500,8 @@ CONTAINS
 
   SUBROUTINE deallocate_solver_variables
 
+    use constitutive_2d, only:inv_rho_s, sp_heat_s
+
     DEALLOCATE( q, q0, hpos, hpos_old )
 
     DEALLOCATE( hmax, pdynmax )
@@ -580,6 +582,8 @@ CONTAINS
     DEALLOCATE( j_cent, k_cent )
     DEALLOCATE ( j_stag_x, k_stag_x )
     DEALLOCATE ( j_stag_y, k_stag_y )
+
+    !$omp target exit data map(delete: inv_rho_s, sp_heat_s)
 
     RETURN
     
@@ -1280,7 +1284,7 @@ CONTAINS
        end do
        END DO 
        !$OMP END target teams distribute PARALLEL DO
-       write(*,*) qp_rk(1,:,:,i_RK)
+       !write(*,*) qp_rk(1,:,:,i_RK)
 
        !$OMP parallel DO collapse(2) private( q_guess, q_si, Rj_not_impl)
        DO j = 1, comp_cells_x

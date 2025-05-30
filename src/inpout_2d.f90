@@ -1250,7 +1250,7 @@ CONTAINS
           WRITE(*,*) 'Please check the input file'
           STOP
   else
-          !$omp target update to (sp_heat_s)
+          !$omp target enter data map(always, to:sp_heat_s)
 
        END IF
 
@@ -1452,11 +1452,12 @@ CONTAINS
 
     ALLOCATE( inv_rho_s(n_solid) )
     ALLOCATE( c_inv_rho_s(n_solid) )
+    !$omp target enter data map(alloc : inv_rho_s, sp_heat_s)
 
     ALLOCATE( alphas_init(n_solid) )
 
     inv_rho_s(1:n_solid) = 1.0_wp / rho_s(1:n_solid)
-    !$omp target update to(inv_rho_s)
+    !$omp target enter data map(always, to:inv_rho_s)
 
     DO i_solid=1,n_solid
 
