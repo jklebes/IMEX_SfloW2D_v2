@@ -373,6 +373,7 @@ CONTAINS
 
     !-- Inizialization of the Variables for the namelist EXPL_TERMS_PARAMETERS
     grav = 9.81_wp
+    !$omp target update to(grav)
     inv_grav = 1.0_wp / grav
 
     !-- Inizialization of the Variables for the namelist TEMPERATURE_PARAMETERS
@@ -886,6 +887,8 @@ CONTAINS
        WRITE(*,*) 'SP_HEAT_a =' , sp_heat_a
        WRITE(*,*) 'Please check the input file'
        STOP
+    else
+            !$omp target update to (sp_heat_a)
 
     END IF
 
@@ -895,6 +898,8 @@ CONTAINS
        WRITE(*,*) 'SP_GAS_CONST_a =' , sp_gas_const_a
        WRITE(*,*) 'Please check the input file'
        STOP
+    else
+            !$omp target update to (sp_gas_const_a)
 
     END IF
 
@@ -916,6 +921,7 @@ CONTAINS
 
           END IF
           kin_visc_c = kin_visc_a
+          !$omp target update to(kin_visc_c)
 
        END IF
 
@@ -927,6 +933,8 @@ CONTAINS
        WRITE(*,*) 'SP_HEAT_G =' , sp_heat_g(1:n_solid)
        WRITE(*,*) 'Please check the input file'
        STOP
+    else
+            !$omp target update to (sp_heat_g)
 
     END IF
 
@@ -936,6 +944,9 @@ CONTAINS
        WRITE(*,*) 'SP_GAS_CONST_G =' , sp_gas_const_g(1:n_add_gas)
        WRITE(*,*) 'Please check the input file'
        STOP
+
+       else 
+               !$omp target update to (sp_gas_const_g)
 
     END IF
 
@@ -959,6 +970,7 @@ CONTAINS
     ELSE
 
        inv_pres = 1.0_wp / pres
+       !$omp target update to (pres, inv_pres)
 
     END IF
 
@@ -968,6 +980,8 @@ CONTAINS
        WRITE(*,*) 'T_ambient =' , T_ambient
        WRITE(*,*) 'Please check the input file'
        STOP
+    else
+            !$omp target update to (T_ambient)
 
     END IF
 
@@ -982,6 +996,7 @@ CONTAINS
     END IF
 
     rho_a_amb = pres / ( sp_gas_const_a * T_ambient )
+    !$omp target update to (rho_a_amb)
     IF ( verbose_level .GE. 0 ) THEN
 
        WRITE(*,*) 'Ambient density = ',rho_a_amb,' (kg/m3)'
@@ -1089,8 +1104,9 @@ CONTAINS
           WRITE(*,*) 'SP_HEAT_L =' , sp_heat_l
           WRITE(*,*) 'Please check the input file'
           STOP
-
-       END IF
+  else
+          !$omp target update to (sp_heat_l)
+       ENDIF
 
        IF ( rho_l .EQ. -1.0_wp ) THEN
 
@@ -1099,9 +1115,11 @@ CONTAINS
           WRITE(*,*) 'Please check the input file'
           STOP
 
+
        ELSE
 
           inv_rho_l = 1.0_wp / rho_l
+          !$omp target update to (rho_l, inv_rho_l)
 
        END IF
 
@@ -1116,6 +1134,7 @@ CONTAINS
 
 
        READ(input_unit, rheology_parameters,IOSTAT=ios)
+       !$OMP target update to (friction_factor)
        REWIND(input_unit)
 
        IF ( .NOT. gas_flag ) THEN
@@ -1163,6 +1182,7 @@ CONTAINS
           END IF
 
           kin_visc_c = kin_visc_l
+          !$omp target update to(kin_visc_c)
           sp_heat_c = sp_heat_l
 
        END IF
@@ -1201,6 +1221,8 @@ CONTAINS
           WRITE(*,*) 'RHO_s =' , rho_s(1:n_solid)
           WRITE(*,*) 'Please check the input file'
           STOP
+       else
+               !$omp target update to (rho_s)
 
        END IF
 
@@ -1210,6 +1232,8 @@ CONTAINS
           WRITE(*,*) 'DIAM_s =' , diam_s(1:n_solid)
           WRITE(*,*) 'Please check the input file'
           STOP
+  else
+          !$omp target update to(diam_s)
 
        END IF
 
@@ -1219,6 +1243,8 @@ CONTAINS
           WRITE(*,*) 'SP_HEAT_S =' , sp_heat_s(1:n_solid)
           WRITE(*,*) 'Please check the input file'
           STOP
+  else
+          !$omp target update to (sp_heat_s)
 
        END IF
 
@@ -1424,6 +1450,7 @@ CONTAINS
     ALLOCATE( alphas_init(n_solid) )
 
     inv_rho_s(1:n_solid) = 1.0_wp / rho_s(1:n_solid)
+    !$omp target update to(inv_rho_s)
 
     DO i_solid=1,n_solid
 
@@ -3073,6 +3100,8 @@ CONTAINS
              WRITE(*,*) 'vonK =' , vonK 
              WRITE(*,*) 'Please check the input file'
              STOP
+     else
+             !$OMP target update to (vonk)
 
           END IF
 
@@ -3082,6 +3111,8 @@ CONTAINS
              WRITE(*,*) 'k_s =' , k_s 
              WRITE(*,*) 'Please check the input file'
              STOP
+     else
+             !$OMP target update to (k_s)
 
           END IF
 
@@ -3124,6 +3155,7 @@ CONTAINS
 
           H_crit_rel = 1.0_wp / 30.0_wp * ( -a_crit_rel /                       &
                MAX(lamb0,lamb1) - 1.0_wp )
+          !$omp target update to (H_crit_rel)
 
           WRITE(*,*) 'H_crit_rel',H_crit_rel 
           WRITE(*,*) 'H_crit',H_crit_rel*k_s

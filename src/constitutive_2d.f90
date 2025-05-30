@@ -11,8 +11,14 @@ MODULE constitutive_2d
 
   IMPLICIT none
 !$omp declare target (grav, friction_factor, rho_s, vonk, sc, k_s, z_dyn, rho_a_amb, t_ambient, sp_heat_a, sp_heat_g, sp_heat_s)
+!! all updated to gpu at time of reading in, except: sc, z_dyn
+
 !$omp declare target (sp_heat_l,pres, inv_pres, rho_l, inv_rho_l, sp_heat_c, sp_gas_const_a, sp_gas_const_g)
+!! all updated to gpu at time of setting, except: sp_heat_c
+
 !$omp declare target (inv_rho_s, kin_visc_c, diam_s, h_crit_rel )
+!! all updated to gpu at time of setting
+
   !> flag used for size of implicit non linear-system
   LOGICAL, ALLOCATABLE :: implicit_flag(:)
 
@@ -410,6 +416,7 @@ CONTAINS
 
     USE parameters_2d, ONLY : eps_sing , eps_sing4 , vertical_profiles_flag
     IMPLICIT none
+    !$omp declare target
 
     REAL(wp), INTENT(IN) :: r_qj(n_vars)       !< real-value conservative var
     REAL(wp), INTENT(OUT) :: r_h               !< real-value flow thickness
@@ -487,7 +494,6 @@ CONTAINS
 
     REAL(wp) :: u_log_avg
 
-    !$omp declare target
 
     ! compute solid mass fractions
     IF ( r_qj(1) .GT. EPSILON(1.0_wp) ) THEN
@@ -517,6 +523,7 @@ CONTAINS
        r_red_grav = 0.0_wp
        r_rho_c = rho_a_amb
        p_dyn = 0.0_wp
+       r_h = 0.0_wp
        RETURN
 
     END IF
@@ -599,13 +606,16 @@ CONTAINS
 
        r_rho_c = rho_l
        r_inv_rho_c = inv_rho_l
-       sp_heat_c = sp_heat_l
+       sp_heat_c = sp_heat_l !not used in this subroutine , maybe later ?
 
     END IF
 
     ! the liquid contribution (if present) is added below
-    r_inv_rhom = DOT_PRODUCT( r_xs(1:n_solid) , inv_rho_s(1:n_solid) )          &
-         + r_xc * r_inv_rho_c
+    r_inv_rhom = r_xc * r_inv_rho_c
+
+    do i_solid=1, n_solid !replaces dotproduct in case not known on GPU
+      r_inv_rhom = r_inv_rhom + r_xs(i_solid)*inv_rho_s(i_solid)
+     end do
 
     IF ( gas_flag .AND. liquid_flag ) THEN
 
@@ -632,7 +642,7 @@ CONTAINS
     ! convert from mass fraction to volume fraction
     r_alphac = r_xc * r_rho_m * r_inv_rho_c
 
-    r_h = r_qj(1) * r_inv_rhom
+    r_h = r_qj(1) * r_inv_rhom 
 
     ! reduced gravity
     r_red_grav = ( r_rho_m - rho_a_amb ) * r_inv_rhom * grav
@@ -795,6 +805,7 @@ CONTAINS
        r_Ri = 0.0_wp
 
     END IF
+
 
     RETURN
 
@@ -1436,6 +1447,7 @@ CONTAINS
   SUBROUTINE qc_to_qp(qc,qp,p_dyn)
 
     IMPLICIT none
+    !$omp declare target
 
     REAL(wp), INTENT(IN) :: qc(n_vars)
     REAL(wp), INTENT(OUT) :: qp(n_vars+2)
@@ -1451,12 +1463,11 @@ CONTAINS
     REAL(wp) :: r_alphag(n_add_gas) !< real-value add. gas volume fractions
     REAL(wp) :: r_red_grav
 
-    !$omp declare target
 
     CALL r_phys_var( qc , r_h , r_u , r_v , r_alphas , r_rho_m , r_T ,          &
          r_alphal , r_alphag , r_red_grav , p_dyn )
 
-    qp(1) = r_h
+    qp(1) = r_h 
 
     qp(2) = r_h*r_u
     qp(3) = r_h*r_v

@@ -974,6 +974,7 @@ CONTAINS
     USE geometry_2d, ONLY : B_nodata
 
 !!$    USE parameters_2d, ONLY : time_param, bottom_radial_source_flag
+    USE parameters_2d !for target updates tmp
     
     IMPLICIT NONE
 
@@ -1255,15 +1256,14 @@ CONTAINS
           !END IF
 
           IF ( omega_tilde(i_RK) .GT. 0.0_wp ) THEN
-       !$OMP target update to (T_ambient, i_RK, n_vars)
+       !$OMP target update to (T_ambient, i_RK, n_vars, gas_flag, liquid_flag)
        !$OMP target teams distribute parallel DO collapse(2) default(none) private(p_dyn) &
        !$OMP shared(T_ambient, n_vars, i_RK, q_rk, qp_rk, comp_cells_x, comp_cells_y)
        DO j = 1, comp_cells_x
        DO k = 1, comp_cells_y
 
-
           
-             IF ( q_rk(1, j, k, i_RK) .GT. 0.0_wp ) THEN
+             IF (q_rk(1, j, k, i_RK) .GT. 0.0_wp ) THEN
 
                 CALL qc_to_qp( q_rk(1:n_vars, j, k, i_RK),                        &
                      qp_rk(1:n_vars+2, j, k, i_RK), p_dyn )
@@ -1278,6 +1278,8 @@ CONTAINS
        end do
        END DO 
        !$OMP END target teams distribute PARALLEL DO
+       !write(*,*) qp_rk(1,:,:,i_RK)
+
        !$OMP parallel DO collapse(2) private( q_guess, q_si, Rj_not_impl)
        DO j = 1, comp_cells_x
        DO k = 1, comp_cells_y
