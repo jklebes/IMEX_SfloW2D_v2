@@ -142,8 +142,6 @@ MODULE solver_2d
 
 
   LOGICAL, ALLOCATABLE:: solve_mask(:,:)
-  !$omp declare target (solve_mask_int) 
-  integer, ALLOCATABLE:: solve_mask_int(:,:) ! TODO shorter int?
   LOGICAL, ALLOCATABLE:: solve_mask_temp(:,:)
   LOGICAL, ALLOCATABLE:: solve_mask_x(:,:)
   LOGICAL, ALLOCATABLE:: solve_mask_y(:,:)
@@ -154,8 +152,10 @@ MODULE solver_2d
 
   !> Time step
   REAL(wp):: dt
+  !$omp declare target (dt) 
 
   LOGICAL, ALLOCATABLE:: mask22(:,:), mask21(:,:), mask11(:,:), mask12(:,:)
+  !$omp declare target (mask11, mask21, mask22)
 
   INTEGER:: i_RK           !< loop counter for the RK iteration
 
@@ -178,6 +178,7 @@ MODULE solver_2d
 
   !> Implicit coeff. for the non-hyp. part for a single step of the R-K scheme
   REAL(wp):: a_diag
+  !$omp declare target(a_diag)
 
   !> Intermediate solutions of the Runge-Kutta scheme
   REAL(wp), ALLOCATABLE:: q_rk(:,:,:,:)
@@ -218,7 +219,9 @@ MODULE solver_2d
   INTEGER, ALLOCATABLE:: j_stag_y(:)
   INTEGER, ALLOCATABLE:: k_stag_y(:)
 
+  !$omp declare target (h, one_by_h)
   REAL(wp):: h, one_by_h
+
 
   
 CONTAINS
@@ -247,6 +250,7 @@ CONTAINS
 
     h = n_vars*epsilon(1.0_wp)
     one_by_h = 1.0_wp/h
+    !$omp target update to (h, one_by_h)
     
     ALLOCATE( q( n_vars, comp_cells_x, comp_cells_y ), q0( n_vars,          &
          comp_cells_x, comp_cells_y ) )
@@ -314,7 +318,6 @@ CONTAINS
 
     ALLOCATE( solve_mask_time( comp_cells_x, comp_cells_y ) )
     ALLOCATE( solve_mask( comp_cells_x, comp_cells_y ) )
-    ALLOCATE( solve_mask_int( comp_cells_x, comp_cells_y ) )
     ALLOCATE( solve_mask_temp( comp_cells_x, comp_cells_y ) )
 
     solve_mask_time(1:comp_cells_x, 1:comp_cells_y) = 0.0_wp
@@ -341,6 +344,7 @@ CONTAINS
     ALLOCATE( mask21(n_eqns, n_eqns) )
     ALLOCATE( mask11(n_eqns, n_eqns) )
     ALLOCATE( mask12(n_eqns, n_eqns) )
+    !$omp target enter data map(alloc: mask11, mask21, mask22)
 
     ! Initialize the logical arrays with all false (everything is implicit)
     mask11(1:n_eqns, 1:n_eqns) = .FALSE.
@@ -366,6 +370,7 @@ CONTAINS
        END DO
 
     END DO
+    !$omp target enter data map(always, to: mask11, mask21, mask22)
 
     ! Initialize the coefficients for the IMEX Runge-Kutta scheme
     ! Please note that with respect to the schemes described in Pareschi & Russo 
@@ -549,7 +554,6 @@ CONTAINS
 
     DEALLOCATE( solve_mask_time )
     DEALLOCATE( solve_mask )
-    DEALLOCATE( solve_mask_int )
     DEALLOCATE( solve_mask_temp )
     DEALLOCATE( solve_mask_x )
     DEALLOCATE( solve_mask_y )
@@ -576,6 +580,7 @@ CONTAINS
     DEALLOCATE( expl_terms )
 
     DEALLOCATE( mask22, mask21, mask11, mask12 )
+    !$omp target exit data map(delete:mask11, mask21, mask22)
 
     DEALLOCATE( residual_term )
 
@@ -723,11 +728,6 @@ CONTAINS
 
     !$OMP END PARALLEL
 
-    !transfer solve_mask to gpu
-    solve_mask_int = 0
-    where (solve_mask) solve_mask_int = 1 
-    !$omp target update to (solve_mask_int)
-
     !----- check for cells where computation is needed
     i = 0
         
@@ -834,6 +834,7 @@ CONTAINS
     REAL(wp) p_dyn
 
     dt = max_dt
+    !$omp target update to (dt)
 
     IF ( cfl .NE. -1.0_wp ) THEN
 
@@ -941,6 +942,8 @@ CONTAINS
        END DO
        !$OMP END DO
        !$OMP END PARALLEL
+
+       !$omp target update to(dt)
 
     END IF
 
@@ -1056,6 +1059,7 @@ CONTAINS
 
        ! define the implicit coefficient for the i-th step of the Runge-Kutta
        a_diag = a_dirk_ij(i_RK, i_RK)
+       !$omp target update to (a_diag)
 
        !!$omp target update to (dt, n_vars)
        !$OMP target teams distribute PARALLEL do private(j,k)
@@ -1065,7 +1069,7 @@ CONTAINS
 
           ! New solution at the i_RK step without the implicit  and
           ! semi-implicit term
-          q_fv( 1:n_vars, j, k ) = solve_mask_int(j,k) * ( q0( 1:n_vars, j, k )                     &
+          q_fv( 1:n_vars, j, k ) = ( q0( 1:n_vars, j, k )                     &
                - dt * (MATvecMUL( divFlux(1:n_eqns, j, k, 1:i_RK)                     &
                - expl_terms(1:n_eqns, j, k, 1:i_RK), a_tilde(1:i_RK) )            &
                - MATvecMUL( NH(1:n_eqns, j, k, 1:i_RK) + SI_NH(1:n_eqns, j, k, 1:i_RK), &
@@ -1093,7 +1097,7 @@ CONTAINS
           !END IF
 
           adiag_pos:IF ( a_diag .NE. 0.0_wp ) THEN
-       !$OMP teams distribute parallel DO private(j, k, q_guess, q_si, Rj_not_impl)
+       !$OMP target teams distribute parallel DO private(j, k, q_guess, q_si, Rj_not_impl)
        solve_cells_loop:DO l = 1, solve_cells
           j = j_cent(l)
           k = k_cent(l)
@@ -1217,7 +1221,7 @@ CONTAINS
                   / ( dt*a_diag ) 
 
        END DO solve_cells_loop
-       !$OMP END teams distribute PARALLEL DO
+       !$OMP END target teams distribute PARALLEL DO
 
 
           END IF adiag_pos
@@ -1327,6 +1331,14 @@ CONTAINS
           q(1:n_vars, j, k) = q0(1:n_vars, j, k) - dt*residual_term(1:n_vars, j, k)
 
        END IF
+    END DO assemble_sol
+    !$OMP END PARALLEL DO
+    !$OMP PARALLEL DO private(j, k)
+
+    assemble_sol_checks:DO l = 1, solve_cells
+
+       j = j_cent(l)
+       k = k_cent(l)
 
        IF ( verbose_level .GE. 1 ) THEN
 
@@ -1487,7 +1499,7 @@ CONTAINS
 
        IF ( B_nodata(j, k) ) q(:,j, k) = 0.0_wp
 
-    END DO assemble_sol
+    END DO assemble_sol_checks
 
     !$OMP END PARALLEL DO
      
@@ -1600,9 +1612,9 @@ CONTAINS
        
     END IF
 
-    normalize_q = .TRUE.
-    normalize_f = .FALSE.
-    opt_search_NL = .TRUE.
+    !normalize_q = .TRUE.
+    !normalize_f = .FALSE.
+    !opt_search_NL = .TRUE.
 
     coeff_f(1:n_eqns) = 1.0_wp
 
@@ -1611,51 +1623,51 @@ CONTAINS
     qj_init = qj
 
     ! normalize the functions of the nonlinear system
-    IF ( normalize_f ) THEN
+    !IF ( normalize_f ) THEN !always false
 
-       qj = qj_old-dt * ( MATMUL( divFluxj-expl_terms_j, a_tilde)            &
-            - MATMUL(NHj, a_dirk) )
+    !   qj = qj_old-dt * ( MATMUL( divFluxj-expl_terms_j, a_tilde)            &
+    !        - MATMUL(NHj, a_dirk) )
 
-       CALL eval_f( qj, qj_old, a_diag, coeff_f, Rj_not_impl, Bprimej_x,  &
-            Bprimej_y, right_term, scal_f )
+    !   CALL eval_f( qj, qj_old, a_diag, coeff_f, Rj_not_impl, Bprimej_x,  &
+    !        Bprimej_y, right_term, scal_f )
+    !
+    !   IF ( verbose_level .GE. 3 ) THEN
+    !
+    !      WRITE(*,*) 'solve_rk_step: non-normalized right_term'
+    !      WRITE(*,*) right_term
+    !      WRITE(*,*) 'scal_f',scal_f
 
-       IF ( verbose_level .GE. 3 ) THEN
+    !   END IF
+    !
+    !   DO i = 1, n_eqns
 
-          WRITE(*,*) 'solve_rk_step: non-normalized right_term'
-          WRITE(*,*) right_term
-          WRITE(*,*) 'scal_f',scal_f
+    !      IF ( ABS(right_term(i)) .GE. 1.0_wp ) coeff_f(i) = 1.0_wp/right_term(i)
 
-       END IF
+    !   END DO
 
-       DO i = 1, n_eqns
+    !   right_term = coeff_f*right_term
 
-          IF ( ABS(right_term(i)) .GE. 1.0_wp ) coeff_f(i) = 1.0_wp/right_term(i)
+    !   scal_f = 0.5_wp*DOT_PRODUCT( right_term, right_term )
 
-       END DO
+    !   IF ( verbose_level .GE. 3 ) THEN                    
+    !      WRITE(*,*) 'solve_rk_step: after normalization',scal_f
+    !   END IF
 
-       right_term = coeff_f*right_term
-
-       scal_f = 0.5_wp*DOT_PRODUCT( right_term, right_term )
-
-       IF ( verbose_level .GE. 3 ) THEN                    
-          WRITE(*,*) 'solve_rk_step: after normalization',scal_f
-       END IF
-
-    END IF
+    !END IF
 
     !---- normalize the conservative variables------
 
-    IF ( normalize_q ) THEN
+    ! IF ( normalize_q ) THEN ! always true
 
        qj_org = qj
 
        qj_org = MAX( ABS(qj_org), 1.0E-3_wp )
 
-    ELSE 
+    !ELSE 
 
-       qj_org(1:n_vars) = 1.0_wp
+    !   qj_org(1:n_vars) = 1.0_wp
 
-    END IF
+    !END IF
 
     qj_rel = qj/qj_org
 
@@ -1664,38 +1676,38 @@ CONTAINS
 
        TOLX = epsilon(qj_rel)
        
-       IF ( verbose_level .GE. 2 ) WRITE(*,*) 'solve_rk_step: nl_iter',nl_iter
+       !IF ( verbose_level .GE. 2 ) WRITE(*,*) 'solve_rk_step: nl_iter',nl_iter
 
        CALL eval_f( qj, qj_old, a_diag, coeff_f, Rj_not_impl, Bprimej_x,  &
             Bprimej_y, right_term, scal_f )
        
-       IF ( verbose_level .GE. 2 ) THEN
+       !IF ( verbose_level .GE. 2 ) THEN
 
-          WRITE(*,*) 'solve_rk_step: right_term',right_term
+       !   WRITE(*,*) 'solve_rk_step: right_term',right_term
 
-       END IF
+       !END IF
 
-       IF ( verbose_level .GE. 2 ) THEN
+       !IF ( verbose_level .GE. 2 ) THEN
 
-          WRITE(*,*) 'before_lnsrch: scal_f',scal_f
+       !   WRITE(*,*) 'before_lnsrch: scal_f',scal_f
 
-       END IF
+       !END IF
 
        ! check the residual of the system
 
        IF ( MAXVAL( ABS( right_term(:) ) ) < TOLF ) THEN
 
-          IF ( verbose_level .GE. 3 ) WRITE(*,*) '1: check',check
+       !   IF ( verbose_level .GE. 3 ) WRITE(*,*) '1: check',check
           EXIT newton_raphson_loop
 
        END IF
 
-       IF ( ( normalize_f ) .AND. ( scal_f < 1.0E-6_wp ) ) THEN
+       !IF ( ( normalize_f ) .AND. ( scal_f < 1.0E-6_wp ) ) THEN !always .false.
 
-          IF ( verbose_level .GE. 3 ) WRITE(*,*) 'check scal_f',check
-          EXIT newton_raphson_loop
+       !   IF ( verbose_level .GE. 3 ) WRITE(*,*) 'check scal_f',check
+       !   EXIT newton_raphson_loop
 
-       END IF
+       !END IF
 
        ! ---- evaluate the descent direction------------------------------------
 
@@ -1708,13 +1720,14 @@ CONTAINS
 
           IF ( wp .EQ. sp ) THEN
 
-             CALL SGESV(n_eqns, 1, left_matrix, n_eqns, pivot, desc_dir_temp,  &
-                  n_eqns, ok)
+                  !TODO make available on GPU, but never used in any of the examples
+             !CALL SGESV(n_eqns, 1, left_matrix, n_eqns, pivot, desc_dir_temp,  &
+             !     n_eqns, ok)
 
           ELSE
 
-             CALL DGESV(n_eqns, 1, left_matrix, n_eqns, pivot, desc_dir_temp,  &
-                  n_eqns, ok)
+             !CALL DGESV(n_eqns, 1, left_matrix, n_eqns, pivot, desc_dir_temp,  &
+             !     n_eqns, ok)
             
           END IF
 
@@ -1766,13 +1779,13 @@ CONTAINS
              
              IF ( wp .EQ. sp ) THEN
                 
-                CALL SGESV(n_nh, 1, left_matrix_small22, n_nh, pivot_small2,  &
-                     desc_dir_small2, n_nh, ok)
+               ! CALL SGESV(n_nh, 1, left_matrix_small22, n_nh, pivot_small2,  &
+               !      desc_dir_small2, n_nh, ok)
                 
              ELSE
                 
-                CALL DGESV(n_nh, 1, left_matrix_small22, n_nh, pivot_small2,  &
-                     desc_dir_small2, n_nh, ok)
+               ! CALL DGESV(n_nh, 1, left_matrix_small22, n_nh, pivot_small2,  &
+               !      desc_dir_small2, n_nh, ok)
                 
              END IF
              
@@ -1783,12 +1796,13 @@ CONTAINS
           
        END IF
 
-       IF ( verbose_level .GE. 3 ) WRITE(*,*) 'desc_dir',desc_dir
+       !IF ( verbose_level .GE. 3 ) WRITE(*,*) 'desc_dir',desc_dir
 
        qj_rel_NR_old = qj_rel
        scal_f_old = scal_f
 
-       IF ( ( opt_search_NL ) .AND. ( nl_iter .GT. 1 ) ) THEN
+       !IF ( ( opt_search_NL ) .AND. ( nl_iter .GT. 1 ) ) THEN
+       IF ( nl_iter .GT. 1  ) THEN
           ! Search for the step lambda giving a suffic. decrease in the solution 
 
           stpmax = STPMX*MAX( SQRT( DOT_PRODUCT(qj_rel, qj_rel) ),            &
@@ -1813,19 +1827,19 @@ CONTAINS
 
        END IF
 
-       IF ( verbose_level .GE. 2 ) WRITE(*,*) 'after_lnsrch: scal_f',scal_f
+       !IF ( verbose_level .GE. 2 ) WRITE(*,*) 'after_lnsrch: scal_f',scal_f
 
        qj = qj_rel*qj_org
 
-       IF ( verbose_level .GE. 3 ) THEN
+       !IF ( verbose_level .GE. 3 ) THEN
 
-          WRITE(*,*) 'qj',qj
+       !   WRITE(*,*) 'qj',qj
 
-       END IF
+       !END IF
 
        IF ( MAXVAL( ABS( right_term(:) ) ) < TOLF ) THEN
 
-          IF ( verbose_level .GE. 3 ) WRITE(*,*) '1: check',check
+          !IF ( verbose_level .GE. 3 ) WRITE(*,*) '1: check',check
           check= .FALSE.
           EXIT newton_raphson_loop
 
@@ -1836,7 +1850,7 @@ CONTAINS
           check = ( MAXVAL( ABS(grad_f(:)) * MAX( ABS( qj_rel(:) ), 1.0_wp ) /   &
                MAX( scal_f, 0.5_wp*SIZE(qj_rel) ) )  < TOLMIN )
 
-          IF ( verbose_level .GE. 3 ) WRITE(*,*) '2: check',check
+          !IF ( verbose_level .GE. 3 ) WRITE(*,*) '2: check',check
           !          RETURN
 
        END IF
@@ -1844,7 +1858,7 @@ CONTAINS
        IF ( MAXVAL( ABS( qj_rel(:) - qj_rel_NR_old(:) ) / MAX( ABS( qj_rel(:)), &
             1.0_wp ) ) < TOLX ) THEN
 
-          IF ( verbose_level .GE. 3 ) WRITE(*,*) 'check',check
+          !IF ( verbose_level .GE. 3 ) WRITE(*,*) 'check',check
           EXIT newton_raphson_loop
 
        END IF
@@ -2758,7 +2772,7 @@ CONTAINS
 
        END DO x_interfaces_loop
 
-       !$OMP END target teams distribute parallel DO  ! TODO NOWAIT ?
+       !$OMP END target teams distribute parallel DO 
 
     END IF
 
@@ -2786,8 +2800,14 @@ CONTAINS
           
           CALL average_KT( a_interface_yNeg(:,j, k),                            &
                a_interface_yPos(:,j, k), fluxB, fluxT, flux_avg_y )
+       END DO y_interfaces_loop
+       !$OMP END target teams distribute parallel DO
+       !$OMP target teams distribute parallel DO collapse(2) private(j,k)
+       DO l = 1, solve_interfaces_y
 
           DO i = 1, n_eqns
+          j = j_stag_y(l)
+          k = k_stag_y(l)
 
              IF ( a_interface_yNeg(i, j, k) .EQ. a_interface_yPos(i, j, k) ) THEN
 
@@ -2803,7 +2823,13 @@ CONTAINS
              END IF
 
           END DO
+       end do
 
+       !$OMP target teams distribute parallel DO private(j,k)
+       DO l = 1, solve_interfaces_y
+
+          j = j_stag_y(l)
+          k = k_stag_y(l)
           ! In the equation for mass and for trasnport (T, alphas) if the 
           ! velocities at the interfaces are null, then the flux is null
           IF ( (  q_interfaceB(3, j, k) .EQ. 0.0_wp ) .AND.                       &
@@ -2814,7 +2840,7 @@ CONTAINS
 
           END IF
 
-       END DO y_interfaces_loop
+       END DO 
 
        !$OMP END target teams distribute parallel DO
 

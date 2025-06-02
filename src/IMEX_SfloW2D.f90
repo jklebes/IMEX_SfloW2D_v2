@@ -352,6 +352,7 @@ PROGRAM IMEX_SfloW2D
      END IF
 
      dt = MIN(dt, 1.1_wp*0.5_wp * ( dt_old+dt_old_old ) )
+     !$omp target update to (dt) !TODO is this relevant?
 
      dt_old_old = dt_old
      dt_old = dt
