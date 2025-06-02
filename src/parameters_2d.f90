@@ -64,6 +64,7 @@ MODULE parameters_2d
   !> - T      => rheology activated
   !> - F      => no rheology
   !> .
+!$omp declare target(rheology_flag)
   LOGICAL :: rheology_flag
   
   !> choice of the rheology model
@@ -71,6 +72,7 @@ MODULE parameters_2d
   !> - 2      => plastic rheology
   !> .
   !> - 9      => Coulomb function mu(Fr) (Zhu... 2020 , Roche... 2021)
+!$omp declare target(rheology_model)
   INTEGER :: rheology_model
 
 !$omp declare target(gas_flag, liquid_flag)

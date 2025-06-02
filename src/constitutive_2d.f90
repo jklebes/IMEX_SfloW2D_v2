@@ -21,6 +21,9 @@ MODULE constitutive_2d
 
 !$omp declare target (sp_heat_s, inv_rho_s)
 
+!for eval_nh_semi_impl_terms
+!$omp declare target(mu, tau0, beta2, alpha2, mu_0, mu_inf, Fr_0)
+
   !> flag used for size of implicit non linear-system
   LOGICAL, ALLOCATABLE :: implicit_flag(:)
 
@@ -3026,6 +3029,7 @@ CONTAINS
     USE parameters_2d, ONLY : four_thirds , neg_four_thirds
 
     IMPLICIT NONE
+    !!$omp declare target
 
     REAL(wp), INTENT(IN) :: Bprimej_x
     REAL(wp), INTENT(IN) :: Bprimej_y
@@ -3332,6 +3336,7 @@ CONTAINS
        Bsecondj_xy , Bsecondj_yy , grav_coeff , qcj , qpj , nh_semi_impl_term )
 
     IMPLICIT NONE
+    !$omp declare target
 
     REAL(wp), INTENT(IN) :: Bprimej_x
     REAL(wp), INTENT(IN) :: Bprimej_y

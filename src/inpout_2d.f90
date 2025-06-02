@@ -492,7 +492,8 @@ CONTAINS
        ALLOCATE ( sp_gas_const_g(n_add_gas) )
 
        !others read from newrun_parameters
-       !$omp target update to (slope_correction_flag)
+       ! TODO not sure all flags are updated
+       !$omp target update to (slope_correction_flag, rheology_flag)
        ! allocate on GPU 
        !$omp target enter data map(alloc: alphas_source, alphal_source, alphag_source)
 
@@ -2548,6 +2549,9 @@ CONTAINS
           REWIND(input_unit)
 
        END IF
+
+       !$omp target update to (mu, tau0, beta2, alpha2, mu_0, mu_inf, Fr_0)
+       !$omp target update to (rheology_model)
 
        IF ( rheology_model .EQ. 0 ) THEN
 

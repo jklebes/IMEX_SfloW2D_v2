@@ -1093,7 +1093,7 @@ CONTAINS
           !END IF
 
           adiag_pos:IF ( a_diag .NE. 0.0_wp ) THEN
-       !$OMP parallel DO private(j, k, q_guess, q_si, Rj_not_impl)
+       !$OMP teams distribute parallel DO private(j, k, q_guess, q_si, Rj_not_impl)
        solve_cells_loop:DO l = 1, solve_cells
           j = j_cent(l)
           k = k_cent(l)
@@ -1217,7 +1217,7 @@ CONTAINS
                   / ( dt*a_diag ) 
 
        END DO solve_cells_loop
-       !$OMP END PARALLEL DO
+       !$OMP END teams distribute PARALLEL DO
 
 
           END IF adiag_pos
@@ -2968,7 +2968,7 @@ CONTAINS
     !WRITE(*,*) 'nvars',n_vars
     !WRITE(*,*) 'qp_expl(:,1, 1)',qp_expl(:,1, 1)
     
-    !!!$OMP PARALLEL DO private(l, j, k, i, qrecW, qrecE, qrecS, qrecN, x_stencil, y_stencil)
+    !!$OMP PARALLEL DO private(l, j, k, i, qrecW, qrecE, qrecS, qrecN, x_stencil, y_stencil)
 
     DO l = 1, solve_cells
 
@@ -3698,7 +3698,7 @@ CONTAINS
        
     END DO
 
-    !!!$OMP END PARALLEL DO
+    !!$OMP END PARALLEL DO
 
     RETURN
 
