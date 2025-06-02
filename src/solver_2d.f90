@@ -992,9 +992,7 @@ CONTAINS
 
     IF ( verbose_level .GE. 1 ) WRITE(*,*) 'solver, imex_RK_solver: beginning'
 
-    !$OMP PARALLEL
- 
-    !$OMP DO private(j, k)
+    !$OMP PARALLEL DO private(j, k)
     DO l = 1, solve_cells
 
        j = j_cent(l)
@@ -1021,16 +1019,13 @@ CONTAINS
        expl_terms(1:n_eqns, j, k, 1:n_RK) = 0.0_wp
        
     END DO
-    !$OMP END DO
-
-    !$OMP END PARALLEL
+    !$OMP END PARALLEL DO
 
 
-    !$omp target map(always, to: q0) map (always, from: q_rk)
-    !$omp teams 
-    !$OMP distribute PARALLEL DO collapse(2)
-       DO j = 1, comp_cells_x
-       DO k = 1, comp_cells_y
+    !$omp target teams distribute parallel do private(j,k) map(always, to: q0) map (always, from: q_rk)
+       DO l = 1, solve_cells
+       j = j_cent(l)
+       k = k_cent(l)
           ! initialize the RK step
           !IF ( i_RK .EQ. 1 ) THEN
 
@@ -1044,10 +1039,7 @@ CONTAINS
 
           !END IF
       end do
-      end do
-      !$OMP END distribute PARALLEL DO
-      !$OMP end teams
-      !$omp end target
+      !$OMP END target teams distribute PARALLEL DO
 
 
     runge_kutta:DO i_RK = 1, n_RK
@@ -1065,13 +1057,11 @@ CONTAINS
        ! define the implicit coefficient for the i-th step of the Runge-Kutta
        a_diag = a_dirk_ij(i_RK, i_RK)
 
-       !$omp target update to (dt, n_vars)
-       !$omp target
-       !$OMP teams distribute PARALLEL do collapse(2) private(j,k)
-       DO j = 1, comp_cells_x
-       DO k = 1, comp_cells_y
-          !j = j_cent(l)
-          !k = k_cent(l)
+       !!$omp target update to (dt, n_vars)
+       !$OMP target teams distribute PARALLEL do private(j,k)
+       DO l = 1, solve_cells
+          j = j_cent(l)
+          k = k_cent(l)
 
           ! New solution at the i_RK step without the implicit  and
           ! semi-implicit term
@@ -1080,12 +1070,8 @@ CONTAINS
                - expl_terms(1:n_eqns, j, k, 1:i_RK), a_tilde(1:i_RK) )            &
                - MATvecMUL( NH(1:n_eqns, j, k, 1:i_RK) + SI_NH(1:n_eqns, j, k, 1:i_RK), &
                a_dirk(1:i_RK) ) ))
-          CALL qc_to_qp(q_fv(1:n_vars, j, k), qp(1:n_vars+2, j, k), p_dyn )
        end do
-       end do
-       !$omp end teams distribute parallel do
-       !$omp end target
-
+       !$omp end target teams distribute parallel do
 
           !IF ( verbose_level .GE. 2 ) THEN
 
@@ -1107,9 +1093,10 @@ CONTAINS
           !END IF
 
           adiag_pos:IF ( a_diag .NE. 0.0_wp ) THEN
-       !$OMP parallel DO collapse(2) private( q_guess, q_si, Rj_not_impl)
-       solve_cells_loop:DO j = 1, comp_cells_x
-       DO k = 1, comp_cells_y
+       !$OMP parallel DO private(j, k, q_guess, q_si, Rj_not_impl)
+       solve_cells_loop:DO l = 1, solve_cells
+          j = j_cent(l)
+          k = k_cent(l)
 
              pos_thick:IF ( q_fv(1, j, k) .GT.  0.0_wp )  THEN
 
@@ -1228,7 +1215,7 @@ CONTAINS
              ! Update the implicit term with correction on the new velocity
              NH(1:n_vars, j, k, i_RK) = ( q_rk(1:n_vars,j,k,i_RK) - q_si(1:n_vars))      &
                   / ( dt*a_diag ) 
-       end do
+
        END DO solve_cells_loop
        !$OMP END PARALLEL DO
 
@@ -1263,10 +1250,12 @@ CONTAINS
           IF ( omega_tilde(i_RK) .GT. 0.0_wp ) THEN
        !$OMP target update to (T_ambient, i_RK, n_vars, gas_flag, liquid_flag, n_solid, n_add_gas)
        !$OMP target update to (energy_flag, eps_sing, vertical_profiles_flag, eps_sing4)
-       !$OMP target teams distribute parallel DO collapse(2) default(none) private(p_dyn) &
-       !$OMP shared(T_ambient, n_vars, i_RK, q_rk, qp_rk, comp_cells_x, comp_cells_y)
-       DO j = 1, comp_cells_x
-       DO k = 1, comp_cells_y
+       !$OMP target teams distribute parallel DO default(none) private(j,k,p_dyn) &
+       !$OMP shared(T_ambient, n_vars, i_RK, q_rk, qp_rk, solve_cells, j_cent, k_cent)
+       !!$omp parallel do private(j,k, p_dyn)
+       DO l = 1, solve_cells
+          j = j_cent(l)
+          k = k_cent(l)
 
           
              IF (q_rk(1, j, k, i_RK) .GT. 0.0_wp ) THEN
@@ -1281,14 +1270,16 @@ CONTAINS
 
              END IF
 
-       end do
        END DO 
+       !!$omp end parallel do
        !$OMP END target teams distribute PARALLEL DO
        !write(*,*) qp_rk(1,:,:,i_RK)
 
-       !$OMP target teams distribute parallel DO collapse(2) 
-       DO j = 1, comp_cells_x
-       DO k = 1, comp_cells_y
+       !$OMP target teams distribute parallel DO private(j,k)
+       DO l = 1, solve_cells
+
+       j = j_cent(l)
+       k = k_cent(l)
 
              ! Eval gravity term and radial bottom source terms
              CALL eval_expl_terms( B_prime_x(j, k), B_prime_y(j, k),            &
@@ -1298,7 +1289,6 @@ CONTAINS
                   expl_terms(1:n_eqns, j, k, i_RK), t, cell_source_fractions(j, k) )
   
 
-       end do
        END DO 
        !$OMP END target teams distribute PARALLEL DO
 
@@ -1325,6 +1315,19 @@ CONTAINS
             omega )
 
 
+       IF ( ( SUM(ABS( omega_tilde(:)-a_tilde_ij(n_RK, :))) .EQ. 0.0_wp  )       &
+            .AND. ( SUM(ABS(omega(:)-a_dirk_ij(n_RK, :))) .EQ. 0.0_wp ) ) THEN
+
+          ! The assembling coeffs are equal to the last step of the RK scheme
+          q(1:n_vars, j, k) = q_rk(1:n_vars, j, k, n_RK)
+
+       ELSE
+
+          ! The assembling coeffs are different
+          q(1:n_vars, j, k) = q0(1:n_vars, j, k) - dt*residual_term(1:n_vars, j, k)
+
+       END IF
+
        IF ( verbose_level .GE. 1 ) THEN
 
           WRITE(*,*) 'cell jk =',j, k
@@ -1336,19 +1339,6 @@ CONTAINS
              WRITE(*,*) 'before imex_RK_solver: qp',qp(1:n_vars+2, j, k)
  
           END IF
-
-       END IF
-
-       IF ( ( SUM(ABS( omega_tilde(:)-a_tilde_ij(n_RK, :))) .EQ. 0.0_wp  )       &
-            .AND. ( SUM(ABS(omega(:)-a_dirk_ij(n_RK, :))) .EQ. 0.0_wp ) ) THEN
-
-          ! The assembling coeffs are equal to the last step of the RK scheme
-          q(1:n_vars, j, k) = q_rk(1:n_vars, j, k, n_RK)
-
-       ELSE
-
-          ! The assembling coeffs are different
-          q(1:n_vars, j, k) = q0(1:n_vars, j, k) - dt*residual_term(1:n_vars, j, k)
 
        END IF
        
@@ -2515,7 +2505,7 @@ CONTAINS
 
     END SELECT
 
-    !$OMP PARALLEL DO private(l, j, k, i)
+    !$OMP target teams distribute PARALLEL DO private(l, j, k, i)
 
     cells_loop:DO l = 1, solve_cells
 
@@ -2529,14 +2519,14 @@ CONTAINS
           IF ( comp_cells_x .GT. 1 ) THEN
 
              divFlux_iRK(i, j, k) = divFlux_iRK(i, j, k) +                          &
-                  ( H_interface_x(i, j+1, k) - H_interface_x(i, j, k) ) * one_by_dx
+                  ( H_interface_x(i, j+1, k) - H_interface_x(i, j, k) ) * one_by_dx 
 
           END IF
 
           IF ( comp_cells_y .GT. 1 ) THEN
 
              divFlux_iRK(i, j, k) = divFlux_iRK(i, j, k) +                          &
-                  ( H_interface_y(i, j, k+1) - H_interface_y(i, j, k) ) * one_by_dy
+                  ( H_interface_y(i, j, k+1) - H_interface_y(i, j, k) ) * one_by_dy 
 
           END IF
 
@@ -2544,7 +2534,7 @@ CONTAINS
 
     END DO cells_loop
 
-    !$OMP END PARALLEL DO
+    !$OMP END target teams distribute PARALLEL DO
 
     RETURN
 
@@ -2580,7 +2570,7 @@ CONTAINS
 
     IF ( comp_cells_x .GT. 1 ) THEN
 
-       !$OMP PARALLEL DO private(l, j, k, fluxL, fluxR)
+       !$OMP target teams distribute PARALLEL DO private(l, j, k, fluxL, fluxR)
 
        DO l = 1, solve_interfaces_x
 
@@ -2621,14 +2611,14 @@ CONTAINS
 
        END DO
 
-       !$OMP END PARALLEL DO
+       !$OMP END target teams distribute PARALLEL DO
 
     END IF
 
 
     IF ( comp_cells_y .GT. 1 ) THEN
 
-       !$OMP PARALLEL DO private(l, j, k, fluxB, fluxT)
+       !$OMP target teams distribute PARALLEL DO private(l, j, k, fluxB, fluxT)
        
        DO l = 1, solve_interfaces_y
 
@@ -2671,7 +2661,7 @@ CONTAINS
 
        END DO
 
-       !$OMP END PARALLEL DO
+       !$OMP END target teams distribute PARALLEL DO
        
     END IF
 
@@ -2714,11 +2704,10 @@ CONTAINS
     !H_interface_x = 0.0_wp
     !H_interface_y = 0.0_wp
 
-    !$OMP PARALLEL
 
     IF ( comp_cells_x .GT. 1 ) THEN
 
-       !$OMP DO private(j, k, i, fluxL, fluxR, flux_avg_x)
+       !$OMP target teams distribute parallel DO private(j, k, i, fluxL, fluxR, flux_avg_x)
 
        x_interfaces_loop:DO l = 1, solve_interfaces_x
 
@@ -2769,15 +2758,14 @@ CONTAINS
 
        END DO x_interfaces_loop
 
-       !$OMP END DO NOWAIT
+       !$OMP END target teams distribute parallel DO  ! TODO NOWAIT ?
 
     END IF
 
-    
 
     IF ( comp_cells_y .GT. 1 ) THEN
 
-       !$OMP DO private(j, k, i, fluxB, fluxT, flux_avg_y)
+       !$OMP target teams distribute parallel DO private(j, k, i, fluxB, fluxT, flux_avg_y)
        
        y_interfaces_loop:DO l = 1, solve_interfaces_y
 
@@ -2828,11 +2816,10 @@ CONTAINS
 
        END DO y_interfaces_loop
 
-       !$OMP END DO
+       !$OMP END target teams distribute parallel DO
 
     END IF
 
-    !$OMP END PARALLEL
 
     RETURN
     

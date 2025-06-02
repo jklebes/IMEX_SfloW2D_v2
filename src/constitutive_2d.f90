@@ -2100,9 +2100,10 @@ CONTAINS
 
   SUBROUTINE eval_fluxes(qcj,qpj,B_prime_x,B_prime_y,grav_coeff,dir,flux)
 
-    USE parameters_2d, ONLY : vertical_profiles_flag
+    USE parameters_2d, ONLY : vertical_profiles_flag !TODO
 
     IMPLICIT none
+    !$omp declare target
 
     REAL(wp), INTENT(IN) :: qcj(n_vars)
     REAL(wp), INTENT(IN) :: qpj(n_vars+2)

@@ -103,6 +103,7 @@ MODULE parameters_2d
   !> - F      => correction not active
   !> .
   LOGICAL :: slope_correction_flag
+!$omp declare target(slope_correction_flag)
 
   !> Flag to account for the centrifugal force associated with topography curvature
   !> - T      => compute the term

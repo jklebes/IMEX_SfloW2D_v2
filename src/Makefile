@@ -173,7 +173,7 @@ ETAGS = etags
 EXEEXT = 
 FC =  /home/jklebes/offload/install/bin/gfortran 
 #FC = gfortran
-#FCFLAGS = -fopenmp -O0 -funroll-all-loops 
+#FCFLAGS = -fopenmp -O0 # -funroll-all-loops 
 FCFLAGS = -fopenmp -O0 '-foffload=-lm -lgfortran'
 INSTALL = /usr/bin/install -c
 INSTALL_DATA = ${INSTALL} -m 644

@@ -491,6 +491,8 @@ CONTAINS
        ALLOCATE ( sp_heat_g(n_add_gas) )
        ALLOCATE ( sp_gas_const_g(n_add_gas) )
 
+       !others read from newrun_parameters
+       !$omp target update to (slope_correction_flag)
        ! allocate on GPU 
        !$omp target enter data map(alloc: alphas_source, alphal_source, alphag_source)
 
