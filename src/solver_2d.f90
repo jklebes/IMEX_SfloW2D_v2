@@ -1286,7 +1286,7 @@ CONTAINS
        !$OMP END target teams distribute PARALLEL DO
        !write(*,*) qp_rk(1,:,:,i_RK)
 
-       !$OMP parallel DO collapse(2) private( q_guess, q_si, Rj_not_impl)
+       !$OMP target teams distribute parallel DO collapse(2) 
        DO j = 1, comp_cells_x
        DO k = 1, comp_cells_y
 
@@ -1300,7 +1300,7 @@ CONTAINS
 
        end do
        END DO 
-       !$OMP END PARALLEL DO
+       !$OMP END target teams distribute PARALLEL DO
 
           ! Eval and store the explicit hyperbolic (fluxes) terms
           CALL eval_hyperbolic_terms(                                           &

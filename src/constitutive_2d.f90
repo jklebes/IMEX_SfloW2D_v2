@@ -10,7 +10,7 @@ MODULE constitutive_2d
        curvature_term_flag
 
   IMPLICIT none
-!$omp declare target (grav, friction_factor, rho_s, vonk, sc, k_s, z_dyn, rho_a_amb, t_ambient, sp_heat_a, sp_heat_g)
+!$omp declare target (grav, friction_factor, vonk, rho_s, sc, k_s, z_dyn, rho_a_amb, t_ambient, sp_heat_a, sp_heat_g)
 !! all updated to gpu at time of reading in
 
 !$omp declare target (sp_heat_l,pres, inv_pres, rho_l, inv_rho_l, sp_heat_c, sp_gas_const_a, sp_gas_const_g)
@@ -1176,6 +1176,7 @@ CONTAINS
        r_sp_heat_c,r_sp_heat_mix)
 
     IMPLICIT none
+    !$omp declare target
 
     REAL(wp), INTENT(IN) :: qpj(n_vars+2) !< real-value physical variables
     REAL(wp), INTENT(OUT) :: r_Ri         !< real-value Richardson number
@@ -2742,6 +2743,7 @@ CONTAINS
 
 
     IMPLICIT NONE
+    !$omp declare target
 
     REAL(wp), INTENT(IN) :: Bprimej_x
     REAL(wp), INTENT(IN) :: Bprimej_y

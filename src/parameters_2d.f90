@@ -108,6 +108,7 @@ MODULE parameters_2d
   !> - T      => compute the term
   !> - F      => neglect the term
   !> .
+!$omp declare target(curvature_term_flag)
   LOGICAL :: curvature_term_flag
 
   !> Flag to account for the deposit thickness in the erobidle layer
@@ -145,6 +146,7 @@ MODULE parameters_2d
   REAL(wp), ALLOCATABLE :: thickness_levels(:)
   REAL(wp), ALLOCATABLE :: dyn_pres_levels(:)
 
+  !$omp declare target(vel_source, T_source)
   REAL(wp) :: x_source
   REAL(wp) :: y_source
   REAL(wp) :: r_source
@@ -154,6 +156,7 @@ MODULE parameters_2d
   REAL(wp) :: Ri_source
   REAL(wp) :: mfr_source
   
+  !$omp declare target(alphas_source, alphag_source, alphal_source)
   REAL(wp) :: alphas_source(100)
   REAL(wp) :: alphag_source(100)
   REAL(wp) :: alphal_source
@@ -162,6 +165,7 @@ MODULE parameters_2d
   REAL(wp) :: xg_source(100)
   REAL(wp) :: xl_source
 
+  !$omp declare target(time_param)
   REAL(wp) :: time_param(4)
 
   !> Lateral source side:\n
@@ -193,6 +197,7 @@ MODULE parameters_2d
   REAL(wp) :: alphas_collapse(100)
   REAL(wp) :: alphag_collapse(100)
 
+  !$omp declare target(bottom_radial_source_flag)
   LOGICAL :: bottom_radial_source_flag
 
   
@@ -227,7 +232,7 @@ MODULE parameters_2d
   !> Initial sediment concentration in the pile of material
   REAL(wp), ALLOCATABLE :: alphas_init(:)
 
-!$omp declare target(n_vars)
+!$omp declare target(n_vars, n_eqns)
   INTEGER :: n_vars   !< Number of conservative variables
   INTEGER :: n_eqns   !< Number of equations
 

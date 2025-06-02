@@ -467,6 +467,7 @@ CONTAINS
        ALLOCATE( diam_s(n_solid) )
        ALLOCATE( sp_heat_s(n_solid) )
        ALLOCATE( erodible_fract(n_solid) )
+       !$omp target enter data map(alloc: rho_s, diam_s)
 
        IF ( n_add_gas .LT. 0 ) THEN
 
@@ -490,12 +491,18 @@ CONTAINS
        ALLOCATE ( sp_heat_g(n_add_gas) )
        ALLOCATE ( sp_gas_const_g(n_add_gas) )
 
+       ! allocate on GPU 
+       !$omp target enter data map(alloc: alphas_source, alphal_source, alphag_source)
+
        CLOSE(input_unit)
 
     END IF
 
     ! output file index
     output_idx = 0
+
+    ! others read from namelist newrun_parameters
+    !$omp target update to (bottom_radial_source_flag, curvature_term_flag)
 
     ! -------------- Initialize values for checks during input reading ----------
     h_bcW%flag = -1 
@@ -1228,7 +1235,7 @@ CONTAINS
           WRITE(*,*) 'Please check the input file'
           STOP
        else
-               !$omp target update to (rho_s)
+               !$omp target enter data map (always, to: rho_s)
 
        END IF
 
@@ -1239,7 +1246,7 @@ CONTAINS
           WRITE(*,*) 'Please check the input file'
           STOP
   else
-          !$omp target update to(diam_s)
+          !$omp target enter data map (always, to: diam_s)
 
        END IF
 
@@ -1430,6 +1437,7 @@ CONTAINS
 
     n_vars = n_vars + n_solid
     n_eqns = n_vars
+    !$omp target update to (n_vars, n_eqns)
 
     WRITE(*,*) 'Model variables = ',n_vars
 
@@ -3223,6 +3231,9 @@ CONTAINS
              WRITE(*,*) 'PLEASE CHECK VALUE OF T_SOURCE',t_source
              STOP
 
+     else
+             !$omp target update to (T_source)
+
           END IF
 
           IF ( ( ( h_source .EQ. -1.0_wp ) .AND. ( mfr_source .EQ. -1 ) ) &
@@ -3271,6 +3282,8 @@ CONTAINS
              WRITE(*,*) 'ERROR: problem with namelist RADIAL_SOURCE_PARAMETERS'
              WRITE(*,*) 'PLEASE CHECK VALUE OF VEL_SOURCE',vel_source
              STOP
+          else
+                  !$omp target update to (vel_source)
 
           END IF
 
@@ -3584,6 +3597,7 @@ CONTAINS
 
           ELSE
 
+                  !$omp target update to (time_param)
              IF ( time_param(2) .GT. time_param(1) ) THEN
 
                 WRITE(*,*) 'ERROR: problem with namelist RADIAL_SOURCEPARAMETERS'
@@ -3681,6 +3695,7 @@ CONTAINS
              END IF
              
              WRITE(*,*) 'Source solid volume fraction =',alphas_source(1:n_solid)
+                  !$omp target enter data map(always, to : alphas_source)
 
              IF ( n_add_gas .GT. 0 ) THEN
 
@@ -3692,8 +3707,10 @@ CONTAINS
              IF ( gas_flag .AND. liquid_flag ) THEN
 
                 WRITE(*,*) 'Source liquid volume fraction =',alphal_source
+                  !$omp target enter data map(always, to : alphal_source)
 
              END IF
+                  !$omp target enter data map(always, to : alphag_source)
 
              IF ( alpha_flag ) THEN
 
@@ -3789,6 +3806,7 @@ CONTAINS
                       
                       ! compute the correct velocity for the desired Richardson number
                       vel_source = SQRT( red_grav * h_source /Ri_source )
+                      !$omp target update to (vel_source)
                       
                       IF ( ABS( Ri-Ri_source ) < 1.0E-15_wp ) EXIT search_Ri_loop
 
@@ -3841,6 +3859,7 @@ CONTAINS
 
                    ! compute the correct velocity for the desired Richardson number
                    vel_source = SQRT( Ri/Ri_source )
+                      !$omp target update to (vel_source)
 
                 END IF
 
