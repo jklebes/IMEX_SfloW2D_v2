@@ -2959,6 +2959,7 @@ CONTAINS
   SUBROUTINE integrate_friction_term( r_qj , dt )
 
     IMPLICIT NONE
+    !$omp declare target
 
     REAL(wp), INTENT(INOUT) :: r_qj(n_vars)
     REAL(wp), INTENT(IN) :: dt 
@@ -3029,7 +3030,7 @@ CONTAINS
     USE parameters_2d, ONLY : four_thirds , neg_four_thirds
 
     IMPLICIT NONE
-    !!$omp declare target
+    !$omp declare target
 
     REAL(wp), INTENT(IN) :: Bprimej_x
     REAL(wp), INTENT(IN) :: Bprimej_y

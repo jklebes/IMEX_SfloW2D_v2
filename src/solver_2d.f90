@@ -1959,7 +1959,7 @@ CONTAINS
 
     ELSE
 
-       WRITE(*,*) 'nrerror: an assert_eq failed with this tag:', 'lnsrch'
+    !   WRITE(*,*) 'nrerror: an assert_eq failed with this tag:', 'lnsrch'
        STOP 'program terminated by assert_eq4'
 
     END IF
@@ -1988,11 +1988,11 @@ CONTAINS
 
     optimal_step_search: DO
 
-       IF ( verbose_level .GE. 4 ) THEN
+       !IF ( verbose_level .GE. 4 ) THEN
 
-          WRITE(*,*) 'alam',alam
+       !   WRITE(*,*) 'alam',alam
 
-       END IF
+       !END IF
 
        qj_rel = qj_rel_NR_old+alam*desc_dir
 
@@ -2001,12 +2001,12 @@ CONTAINS
        CALL eval_f( qj, qj_old, a_diag, coeff_f, Rj_not_impl, Bprimej_x,  &
             Bprimej_y, right_term, scal_f )
 
-       IF ( verbose_level .GE. 4 ) THEN
+       !IF ( verbose_level .GE. 4 ) THEN
 
-          WRITE(*,*) 'lnsrch: effe_old, effe',scal_f_old, scal_f
-          READ(*,*)
+       !   WRITE(*,*) 'lnsrch: effe_old, effe',scal_f_old, scal_f
+       !   READ(*,*)
 
-       END IF
+       !END IF
 
        IF ( scal_f .LT. scal_f_min ) THEN
 
@@ -2018,22 +2018,22 @@ CONTAINS
        IF ( scal_f .LE. 0.9_wp*scal_f_old ) THEN   
           ! sufficient function decrease
 
-          IF ( verbose_level .GE. 4 ) THEN
+          !IF ( verbose_level .GE. 4 ) THEN
 
-             WRITE(*,*) 'sufficient function decrease'
+          !   WRITE(*,*) 'sufficient function decrease'
 
-          END IF
+          !END IF
 
           EXIT optimal_step_search   
 
        ELSE IF ( alam < alamin ) THEN   
           ! convergence on Delta_x
 
-          IF ( verbose_level .GE. 4 ) THEN
+          !IF ( verbose_level .GE. 4 ) THEN
 
-             WRITE(*,*) ' convergence on Delta_x',alam, alamin
+          !   WRITE(*,*) ' convergence on Delta_x',alam, alamin
 
-          END IF
+          !END IF
 
           qj_rel(:) = qj_rel_NR_old(:)
           scal_f = scal_f_old
