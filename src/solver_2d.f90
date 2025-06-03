@@ -2802,14 +2802,8 @@ CONTAINS
           
           CALL average_KT( a_interface_yNeg(:,j, k),                            &
                a_interface_yPos(:,j, k), fluxB, fluxT, flux_avg_y )
-       END DO y_interfaces_loop
-       !$OMP END target teams distribute parallel DO
-       !$OMP target teams distribute parallel DO collapse(2) private(j,k)
-       DO l = 1, solve_interfaces_y
 
           DO i = 1, n_eqns
-          j = j_stag_y(l)
-          k = k_stag_y(l)
 
              IF ( a_interface_yNeg(i, j, k) .EQ. a_interface_yPos(i, j, k) ) THEN
 
@@ -2825,13 +2819,7 @@ CONTAINS
              END IF
 
           END DO
-       end do
 
-       !$OMP target teams distribute parallel DO private(j,k)
-       DO l = 1, solve_interfaces_y
-
-          j = j_stag_y(l)
-          k = k_stag_y(l)
           ! In the equation for mass and for trasnport (T, alphas) if the 
           ! velocities at the interfaces are null, then the flux is null
           IF ( (  q_interfaceB(3, j, k) .EQ. 0.0_wp ) .AND.                       &
@@ -2842,7 +2830,7 @@ CONTAINS
 
           END IF
 
-       END DO 
+       END DO y_interfaces_loop
 
        !$OMP END target teams distribute parallel DO
 
