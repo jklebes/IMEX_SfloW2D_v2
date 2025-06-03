@@ -3824,5 +3824,42 @@ CONTAINS
           end do
   end function
 
+    function pack1d(array, mask ) result(v)
+          real(wp), dimension(:) :: array
+          logical, dimension(:) :: mask
+          real(wp), dimension(:), allocatable :: v
+          integer :: l, l1, i, c
+          l = count(mask)
+          l1 = size(array,1)
+          allocate(v(l))
+          v = 0_wp
+          c = 1
+          do i=1, l1
+          if (mask(i)) then
+                 v(c) = array(i)
+                 c = c+1
+          endif
+          end do
+  end function
+
+  function unpack1d(array, mask, field ) result(v)
+          real(wp), dimension(:) :: array
+          logical, dimension(:) :: mask
+          real(wp) :: field
+          real(wp), dimension(:), allocatable :: v
+          integer :: l, l1, i,  c
+          l = count(mask)
+          l1 = size(array,1)
+          allocate(v(l))
+          v = field
+          c = 1
+          do i=1, l
+          if (mask(i)) then
+                 v(i) = array(c)
+                 c = c+1
+          endif
+          end do
+  end function
+
 
 END MODULE solver_2d
