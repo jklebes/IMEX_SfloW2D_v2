@@ -4336,8 +4336,10 @@ CONTAINS
     thickness_init(:,:) = 0.0_wp
 
     restart_file = restart_files(1)
+
+    dot_idx = 0
  
-    check_file = restart_file(dot_idx+1:dot_idx+3)
+    check_file = restart_file(dot_idx+1:dot_idx+3) !dot_idx used uninitialized
     
     IF ( check_file .EQ. 'asc' ) THEN
        

@@ -568,6 +568,7 @@ CONTAINS
     DEALLOCATE( omega )
 
     DEALLOCATE( implicit_flag )
+    !$omp target exit data map(delete:implicit_flag)
 
     DEALLOCATE( a_tilde )
     DEALLOCATE( a_dirk )
@@ -3823,6 +3824,22 @@ CONTAINS
           end do
           end do
   end function
+
+    function vecmatmul(a,b) result(c)
+          real(wp), dimension(:) :: a
+          real(wp), dimension(:,:) :: b
+          real(wp) :: c(size(b,2))
+          integer :: i, j,  l1, l2
+          l1 = size(b,1)
+          l2 = size(b,2)
+          c = 0_wp
+          do i=1, l1
+          do j=1, l2
+            c(j) =  c(j) + a(i)*b(i,j)
+          end do
+          end do
+  end function
+
 
     function pack1d(array, mask ) result(v)
           real(wp), dimension(:) :: array
