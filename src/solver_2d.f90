@@ -1897,6 +1897,7 @@ CONTAINS
        Rj_not_impl, Bprimej_x, Bprimej_y )
 
     IMPLICIT NONE
+!TODO omp declare target missing but seems to work
 
     !> Initial point
     REAL(wp), DIMENSION(:), INTENT(IN):: qj_rel_NR_old

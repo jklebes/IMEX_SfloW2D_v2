@@ -1150,7 +1150,7 @@ CONTAINS
 
 
        READ(input_unit, rheology_parameters,IOSTAT=ios)
-       !$OMP target update to (friction_factor)
+       !$OMP target update to (friction_factor, xi, tau, nu_ref, T_ref, visc_par)
        REWIND(input_unit)
 
        IF ( .NOT. gas_flag ) THEN
@@ -1463,7 +1463,7 @@ CONTAINS
 
     ALLOCATE( inv_rho_s(n_solid) )
     ALLOCATE( c_inv_rho_s(n_solid) )
-    !$omp target enter data map(alloc : inv_rho_s, sp_heat_s)
+    !$omp target enter data map(alloc : inv_rho_s, sp_heat_s, c_inv_rho_s)
 
     ALLOCATE( alphas_init(n_solid) )
 
@@ -1475,6 +1475,7 @@ CONTAINS
        c_inv_rho_s(i_solid) = CMPLX(inv_rho_s(i_solid),0.0_wp,wp)
 
     END DO
+    !$omp target enter data map(always, to : c_inv_rho_s)
 
     ALLOCATE( deposit( comp_cells_x , comp_cells_y , n_solid ) )    
     deposit(1:comp_cells_x,1:comp_cells_y,1:n_solid ) = 0.0_wp
@@ -2419,6 +2420,7 @@ CONTAINS
     ELSE
 
        inv_grav = 1.0_wp / grav
+       !$omp target update to (inv_grav)
 
     END IF
 
@@ -2751,6 +2753,7 @@ CONTAINS
              END IF
 
              WRITE(*,*) 'alpha1 coefficient:',alpha1_coeff
+             !$omp target update to (alpha1_coeff)
 
           END IF
 
@@ -2760,6 +2763,8 @@ CONTAINS
              WRITE(*,*) 'BETA1 =' , beta1 
              WRITE(*,*) 'Please check the input file'
              STOP
+          else
+                  !$omp target update to (beta1)
 
           END IF
 
@@ -2769,6 +2774,8 @@ CONTAINS
              WRITE(*,*) 'KAPPA =' , kappa 
              WRITE(*,*) 'Please check the input file'
              STOP
+     else
+             !$omp target update to (kappa)
 
           END IF
 
@@ -2782,6 +2789,7 @@ CONTAINS
           ELSE
 
              n_td2 = n_td**2
+             !$omp target update to (n_td2)
 
           END IF
 
@@ -2877,6 +2885,7 @@ CONTAINS
 
     END IF
 
+    !$omp target update to (T_env, radiative_term_coeff, convective_term_coeff)
     ! ---------------------------------------------------------------------------
 
     IF ( verbose_level .GE. 1 ) WRITE(*,*) 

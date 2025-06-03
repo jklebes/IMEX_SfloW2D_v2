@@ -24,6 +24,10 @@ MODULE constitutive_2d
 !for eval_nh_semi_impl_terms
 !$omp declare target(mu, tau0, beta2, alpha2, mu_0, mu_inf, Fr_0)
 
+!for eval_impl_terms
+!$omp declare target(xi, tau, t_env, nu_ref, visc_par, t_ref, radiative_term_coeff, convective_term_coeff)
+!$omp declare target(alpha1_coeff, beta1, kappa, inv_grav, n_td2, c_inv_rho_S, implicit_flag)
+
   !> flag used for size of implicit non linear-system
   LOGICAL, ALLOCATABLE :: implicit_flag(:)
 
@@ -355,6 +359,7 @@ CONTAINS
     integer :: i,j
 
     ALLOCATE( implicit_flag(n_eqns) )
+    !$omp target enter data map(alloc:implicit_flag)
 
     implicit_flag(1:n_eqns) = .FALSE.
     implicit_flag(2) = .TRUE.
@@ -385,6 +390,8 @@ CONTAINS
        END IF
 
     END DO
+    !$omp target enter data map(always,to: implicit_flag)
+    !$omp target update to (n_nh)
 
     WRITE(*,*) 'Implicit equations =',n_nh
 
@@ -3103,7 +3110,7 @@ CONTAINS
 
     ELSE
 
-       WRITE(*,*) 'Constitutive, eval_fluxes: problem with arguments'
+       !WRITE(*,*) 'Constitutive, eval_fluxes: problem with arguments'
        STOP
 
     END IF

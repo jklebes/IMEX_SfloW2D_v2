@@ -239,7 +239,7 @@ MODULE parameters_2d
   INTEGER :: n_vars   !< Number of conservative variables
   INTEGER :: n_eqns   !< Number of equations
 
-!$omp declare target(n_solid, n_add_gas)
+!$omp declare target(n_solid, n_add_gas, n_nh)
   INTEGER :: n_solid  !< Number of solid classes
 
   INTEGER :: n_add_gas  !< Number of additional gas components
