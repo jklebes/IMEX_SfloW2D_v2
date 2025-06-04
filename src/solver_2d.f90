@@ -987,12 +987,13 @@ CONTAINS
     
     IMPLICIT NONE
 
-    REAL(wp):: q_si(n_vars) !< solution after the semi-implicit step
-    REAL(wp):: q_guess(n_vars) !< initial guess for the solution of the RK step
+    !REAL(wp):: q_si(n_vars) !< solution after the semi-implicit step
+    !REAL(wp):: q_guess(n_vars) !< initial guess for the solution of the RK step
     INTEGER:: j, k, l            !< loop counter over the grid volumes
     REAL(wp):: Rj_not_impl(n_eqns)
 
     REAL(wp):: p_dyn
+    REAL(wp), dimension(n_vars, comp_cells_x, comp_cells_y):: q_guess, q_si
 
     IF ( verbose_level .GE. 1 ) WRITE(*,*) 'solver, imex_RK_solver: beginning'
 
@@ -1098,12 +1099,11 @@ CONTAINS
           !END IF
 
           adiag_pos:IF ( a_diag .NE. 0.0_wp ) THEN
-       !$OMP target teams distribute parallel DO private(j, k, q_guess, q_si, Rj_not_impl)
-       solve_cells_loop:DO l = 1, solve_cells
+       !$OMP target teams distribute parallel DO private(j, k)
+       DO l = 1, solve_cells
           j = j_cent(l)
           k = k_cent(l)
-
-             pos_thick:IF ( q_fv(1, j, k) .GT.  0.0_wp )  THEN
+             IF ( q_fv(1, j, k) .GT.  0.0_wp )  THEN
 
                 ! Eval the semi-implicit terms
                 ! (terms which non depend on velocity magnitude)
@@ -1111,27 +1111,34 @@ CONTAINS
                      B_second_xx(j, k), B_second_xy(j, k), B_second_yy(j, k),   &
                      grav_coeff(j, k), q_fv( 1:n_vars, j, k ),               &
                      qp( 1:n_vars, j, k ), SI_NH(1:n_eqns, j, k, i_RK) )
+     END IF
+          END DO
+          !$OMP end target teams distribute parallel do
+       !$OMP target teams distribute parallel DO private(j, k)
+       DO l = 1, solve_cells
+          j = j_cent(l)
+          k = k_cent(l)
+
+             IF ( q_fv(1, j, k) .GT.  0.0_wp )  THEN
 
                 ! Assemble the initial guess for the implicit solver
-                q_si(1:n_vars) = q_fv(1:n_vars, j, k ) + dt*a_diag *            &
+                q_si(1:n_vars, j, k) = q_fv(1:n_vars, j, k ) + dt*a_diag *            &
                      SI_NH(1:n_eqns, j, k, i_RK)
 
-                IF ( ( q_fv(2, j, k)**2+q_fv(3, j, k)**2 ) .EQ. 0.0_wp ) THEN
+                IF ( (( q_fv(2, j, k)**2+q_fv(3, j, k)**2 ) .EQ. 0.0_wp ) .OR. &
+                        ( q_si(2, j, k )*q_fv(2, j, k) .LT. 0.0_wp ) .OR.               &
+                     ( q_si(3, j, k )*q_fv(3, j, k) .LT. 0.0_wp ) ) THEN
 
                    !Case 1: if the velocity was null, then it must stay null
-                   q_si(2:3) = 0.0_wp 
-
-                ELSEIF ( ( q_si(2)*q_fv(2, j, k) .LT. 0.0_wp ) .OR.               &
-                     ( q_si(3)*q_fv(3, j, k) .LT. 0.0_wp ) ) THEN
-
+                   ! Or Case 2:
                    ! If the semi-impl. friction term changed the sign of the 
                    ! velocity then set it to zero
-                   q_si(2:3) = 0.0_wp 
+                   q_si(2:3, j, k) = 0.0_wp 
 
                 ELSE
 
                    ! Align the velocity vector with previous one
-                   q_si(2:3) = SQRT( q_si(2)**2+q_si(3)**2 ) *                &
+                   q_si(2:3, j, k ) = SQRT( q_si(2, j, k)**2+q_si(3, j, k )**2 ) *                &
                         q_fv(2:3, j, k) / SQRT( q_fv(2, j, k)**2                    &
                         + q_fv(3, j, k)**2 ) 
 
@@ -1139,67 +1146,80 @@ CONTAINS
 
                 ! Update the semi-implicit term accordingly with the
                 ! corrections above
-                SI_NH(1:n_eqns, j, k, i_RK) = ( q_si(1:n_vars) -                   &
+                SI_NH(1:n_eqns, j, k, i_RK) = ( q_si(1:n_vars,j,k) -                   &
                      q_fv(1:n_vars, j, k ) ) / ( dt*a_diag )
 
                 ! Initialize the guess for the NR solver
-                q_guess(1:n_vars) = q_si(1:n_vars)
+                q_guess(1:n_vars, j, k) = q_si(1:n_vars, j,k)
 
+
+     END IF
+     END DO
+     !$omp end target teams distribute parallel do
+       !$OMP target teams distribute parallel DO private(j, k, Rj_not_impl)
+       solve_cells_loop:DO l = 1, solve_cells
+          j = j_cent(l)
+          k = k_cent(l)
+             pos_thick:IF ( q_fv(1, j, k) .GT.  0.0_wp )  THEN
 
                 Rj_not_impl =  ( MATvecMUL( divFlux(1:n_eqns, j, k, 1:i_RK-1) -       &
-                     expl_terms(1:n_eqns, j, k, 1:i_RK-1), a_tilde(1:i_RK-1) )     &
+                     expl_terms(1:n_eqns, j, k, 1:i_RK-1), a_tilde(1:i_RK-1) )   &
                      - MATvecMUL( NH(1:n_eqns, j, k, 1:i_RK-1)                        &
                      + SI_NH(1:n_eqns, j, k, 1:i_RK-1), a_dirk(1:i_RK-1) ) )      &
                      - a_diag*SI_NH(1:n_eqns, j, k, i_RK)
-
                 ! Solve the implicit system to find the solution at the 
                 ! i_RK step of the IMEX RK procedure
-                CALL solve_rk_step( q_guess(1:n_vars), q0(1:n_vars, j, k ),     &
+                CALL solve_rk_step( q_guess(1:n_vars, j, k ), q0(1:n_vars, j, k ),     &
                      a_tilde, a_dirk, a_diag, Rj_not_impl,                  &
                      divFlux( 1:n_eqns, j, k, 1:n_RK ),                     &
                       expl_terms( 1:n_eqns, j, k, 1:n_RK ),                       &
                       NH( 1:n_eqns, j, k, 1:n_RK ), B_prime_x(j, k),        &
                       B_prime_y(j, k) )
+      END IF pos_thick
+              END DO solve_cells_loop
+     !$omp end target teams distribute parallel do
+       !$OMP target teams distribute parallel DO private(j, k)
+       DO l = 1, solve_cells
+          j = j_cent(l)
+          k = k_cent(l)
+             IF ( q_fv(1, j, k) .GT.  0.0_wp )  THEN
 
                 IF ( comp_cells_y .EQ. 1 ) THEN
 
-                   q_guess(3) = 0.0_wp
+                   q_guess(3, j , k) = 0.0_wp
 
                 END IF
 
                 IF ( comp_cells_x .EQ. 1 ) THEN
 
-                   q_guess(2) = 0.0_wp
+                   q_guess(2, j, k) = 0.0_wp
 
                 END IF
 
                 IF ( rheology_model .EQ. 8 ) THEN
                    
-                   NH(1:n_eqns, j, k, i_RK) = ( q_guess(1:n_vars)                  &
-                        - q_si(1:n_vars) ) / ( dt*a_diag )
+                   NH(1:n_eqns, j, k, i_RK) = ( q_guess(1:n_vars, j, k)                  &
+                        - q_si(1:n_vars, j, k) ) / ( dt*a_diag )
                    
                 ELSE
                    
                    ! Eval and store the implicit term at the i_RK step
                    CALL eval_implicit_terms( B_prime_x(j, k), B_prime_y(j, k),     &
-                        r_qj = q_guess, r_nh_term_impl = NH(1:n_eqns, j, k, i_RK) )
+                        r_qj = q_guess(:, j, k), r_nh_term_impl = NH(1:n_eqns, j, k, i_RK) )
                    
-                   IF ( q_si(2)**2+q_si(3)**2 .EQ. 0.0_wp ) THEN
-                      
-                      q_guess(2:3) = 0.0_wp 
-                      
-                   ELSEIF ( ( q_guess(2)*q_si(2) .LE. 0.0_wp ) .AND.               &
-                        ( q_guess(3)*q_si(3) .LE. 0.0_wp ) ) THEN
+                   IF ( (q_si(2, j, k)**2+q_si(3, j, k)**2 .EQ. 0.0_wp ) .OR. &
+                      (( q_guess(2, j, k)*q_si(2, j , k) .LE. 0.0_wp ) .AND.               &
+                        ( q_guess(3, j, k)*q_si(3, j, k) .LE. 0.0_wp ) ) ) THEN
                       
                    ! If the impl. friction term changed the sign of the 
                       ! velocity then set it to zero
-                      q_guess(2:3) = 0.0_wp 
+                      q_guess(2:3, j, k) = 0.0_wp 
                       
                    ELSE
                       
                       ! Align the velocity vector with previous one
-                      q_guess(2:3) = SQRT( q_guess(2)**2+q_guess(3)**2 ) *      &
-                           q_si(2:3) / SQRT( q_si(2)**2+q_si(3)**2 ) 
+                      q_guess(2:3, j, k) = SQRT( q_guess(2, j, k)**2+q_guess(3, j, k)**2 ) *      &
+                           q_si(2:3, j, k) / SQRT( q_si(2, j, k)**2+q_si(3, j, k)**2 ) 
                       
                    END IF
                    
@@ -1208,20 +1228,20 @@ CONTAINS
              ELSE
 
                 ! If h = 0 nothing has to be changed 
-                q_guess(1:n_vars) = q_fv( 1:n_vars, j, k ) 
-                q_si(1:n_vars) = q_fv( 1:n_vars, j, k ) 
+                q_guess(1:n_vars, j, k) = q_fv( 1:n_vars, j, k ) 
+                q_si(1:n_vars, j, k) = q_fv( 1:n_vars, j, k ) 
                 SI_NH(1:n_eqns, j, k, i_RK) = 0.0_wp
                 NH(1:n_eqns, j, k, i_RK) = 0.0_wp
 
-             END IF pos_thick
+             END IF 
           ! Store the solution at the end of the i_RK step
-          q_rk( 1:n_vars, j, k, i_RK ) = q_guess
+          q_rk( 1:n_vars, j, k, i_RK ) = q_guess(:, j, k)
 
              ! Update the implicit term with correction on the new velocity
-             NH(1:n_vars, j, k, i_RK) = ( q_rk(1:n_vars,j,k,i_RK) - q_si(1:n_vars))      &
+             NH(1:n_vars, j, k, i_RK) = ( q_rk(1:n_vars,j,k,i_RK) - q_si(1:n_vars, j, k))      &
                   / ( dt*a_diag ) 
 
-       END DO solve_cells_loop
+       END DO 
        !$OMP END target teams distribute PARALLEL DO
 
 
@@ -1660,9 +1680,8 @@ CONTAINS
 
     ! IF ( normalize_q ) THEN ! always true
 
-       qj_org = qj
+       qj_org = MAX( ABS(qj), 1.0E-3_wp )
 
-       qj_org = MAX( ABS(qj_org), 1.0E-3_wp )
 
     !ELSE 
 
@@ -1671,11 +1690,12 @@ CONTAINS
     !END IF
 
     qj_rel = qj/qj_org
+    
 
     ! -----------------------------------------------
     newton_raphson_loop:DO nl_iter = 1, max_nl_iter
 
-       TOLX = epsilon(qj_rel)
+    TOLX = epsilon(qj_rel)
        
        !IF ( verbose_level .GE. 2 ) WRITE(*,*) 'solve_rk_step: nl_iter',nl_iter
 
@@ -1759,7 +1779,7 @@ CONTAINS
           END DO
 
           desc_dir_small2 = desc_dir_small2 -                                   &
-               MATMUL( desc_dir_small1, left_matrix_small21 )
+               vecMATMUL( desc_dir_small1, left_matrix_small21 )
           
           
           IF ( COUNT( implicit_flag ) .EQ. 2 ) THEN
@@ -1809,7 +1829,7 @@ CONTAINS
           stpmax = STPMX*MAX( SQRT( DOT_PRODUCT(qj_rel, qj_rel) ),            &
                DBLE( SIZE(qj_rel) ) )
 
-          grad_f = MATMUL( right_term, left_matrix )
+          grad_f = vecMATMUL( right_term, left_matrix )
 
           desc_dir2 = desc_dir
 
@@ -1852,7 +1872,7 @@ CONTAINS
                MAX( scal_f, 0.5_wp*SIZE(qj_rel) ) )  < TOLMIN )
 
           !IF ( verbose_level .GE. 3 ) WRITE(*,*) '2: check',check
-          !          RETURN
+                    RETURN
 
        END IF
 
@@ -1898,7 +1918,7 @@ CONTAINS
        Rj_not_impl, Bprimej_x, Bprimej_y )
 
     IMPLICIT NONE
-!TODO omp declare target missing but seems to work
+    !$omp declare target
 
     !> Initial point
     REAL(wp), DIMENSION(:), INTENT(IN):: qj_rel_NR_old
@@ -1918,7 +1938,7 @@ CONTAINS
     !> Descent direction (usually Newton direction)
     REAL(wp), DIMENSION(:), INTENT(INOUT):: desc_dir
 
-    REAL(wp), INTENT(IN):: stpmax
+    REAL(wp), INTENT(IN):: stpmax ! is this meant to be max num steps?
 
     !> Coefficients to rescale the nonlinear function
     REAL(wp), DIMENSION(:), INTENT(IN):: coeff_f
@@ -1951,6 +1971,8 @@ CONTAINS
     REAL(wp):: scal_f_min, alam_min
 
     REAL(wp):: qj(n_vars)
+
+    integer :: i
 
     ALF = 1.0e-4_wp
 
@@ -2121,6 +2143,7 @@ CONTAINS
     USE constitutive_2d, ONLY : eval_implicit_terms
 
     IMPLICIT NONE
+    !$omp declare target
 
     REAL(wp), INTENT(IN):: qj(n_vars)
     REAL(wp), INTENT(IN):: qj_old(n_vars)
@@ -2175,6 +2198,7 @@ CONTAINS
     USE constitutive_2d, ONLY : eval_implicit_terms
 
     IMPLICIT NONE
+    !$omp declare target
 
     REAL(wp), INTENT(IN):: qj_rel(n_vars)
     REAL(wp), INTENT(IN):: qj_org(n_vars)
